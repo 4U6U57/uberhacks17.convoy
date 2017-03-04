@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+var randomWords = require('random-words');
 
 // Data structures
 var numbers = {};
@@ -7,7 +8,7 @@ var convoys = {};
 
 // Constructors for data structure items
 function number() {
-	this.state = "start";
+	this.state = "new_user";
 	this.convoyId = null;
 }
 function convoy(commander) {
@@ -22,6 +23,9 @@ function car(captain) {
 	this.riders = [];
 	this.uber = null;
 }
+
+// Functions for data structure items
+
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -60,23 +64,49 @@ router.get('/send', function(req, res, next) {
 });
 
 router.post('/convoy', function(req, res) {
-	var phone = req.body.From;
+	var digits = req.body.From;
 	var msg = req.body.Body;
-	if(! numbers[phone]) numbers[phone] = new number();
-	var user = numbers[phone];
-	switch(user.state) {
-		case "start":
-			break;
-		default:
-			break;
+	if(! numbers[digits]) numbers[digits] = new number();
+	var user = numbers[digits];
+	var loop = true;
+	while(loop) {
+		switch(user.state) {
+			case "new_user":
+				switch(stringGetWord(msg, 0)) {
+					case "convoy":
+						user.state = "convoy_init";
+						break;
+					case "join":
+						user.state = "convoy_join";
+						break;
+					default:
+						reply("Command not recognized");
+				}
+				break;
+			case "convoy_init":
+				if(! user.convoyId) {
+					user.convoyId = randomWords();
+					convoy[user.convoyId] = new convoy(digits);
+				};
+				// TODO: Actually recognize src and dest
+				break;
+			case "convoy_join":
+				var id = stringGetWord(msg, 1);
+				if(! convoy[id]) reply(id + " is not a valid convoy. :(");
+				user.convoyId = id;
+				user.state = "wait";
+				loop = false;
+				break;
+			case "wait":
+				break;
+			default:
+				break;
+		}
 	}
 });
 
 // Put abstracted functions here
-var getConvoySrc = function(convoy) {};
-
-var getConvoyDest = function(convoy) {};
-
+var getConvoyStuff = function(convoy) {};
 
 // Put helper functions here
 var getOptCode = function(msg) {
@@ -84,22 +114,22 @@ var getOptCode = function(msg) {
 
 	switch(msg){
 		case "convoy" || "to":
-			optCode 1;
+			optCode = 1;
 			break;
 		case "from":
-			optCode: 2;
+			optCode = 2;
 			break;
 		case "yes":
-			optCode: 3;
+			optCode = 3;
 			break;
 		case "no":
-			optCode: 4;
+			optCode = 4;
 			break;
 		case "done":
-			optCode: 5;
+			optCode = 5;
 			break;
 		default: {
-			optCode: -1;
+			optCode = -1;
 			break;
 		}
 	}
@@ -115,18 +145,18 @@ var parseConvoy = function(tokenizeResponse) {
 
 	for(var i = 0; i < tokenizeResponse.length; i++){
 
-	  if(tokenizeResponse[i] === "from"){
-	    i++;
-	    trigger = 1;
-	  } else if(tokenizeResponse[i] === "to"){
-	    i++;
-	    trigger = 0;
-	  }
-	  if(trigger === 0){
-	    destination += tokenizeResponse[i] + " ";
-	  } else if(trigger === 1){
-	    starting += tokenizeResponse[i] + " ";;
-	  }
+		if(tokenizeResponse[i] === "from"){
+			i++;
+			trigger = 1;
+		} else if(tokenizeResponse[i] === "to"){
+			i++;
+			trigger = 0;
+		}
+		if(trigger === 0){
+			destination += tokenizeResponse[i] + " ";
+		} else if(trigger === 1){
+			starting += tokenizeResponse[i] + " ";;
+		}
 	}
 
 	var convoy = {
@@ -142,8 +172,17 @@ var parseConvoy = function(tokenizeResponse) {
 
 };
 
-
-
-// Get first word helper
+var stringGetWord = function(str, i) {
+	return str.split(" ")[i].toLowerCase();
+};
+var reply = function(res, msg) {
+	var twilio = require('twilio');
+	var twiml = new twilio.TwimlResponse();
+	twiml.message(msg);
+	res.writeHead(200, {
+		'Content-Type': 'text/xml'
+	});
+	res.end(twiml.toString());
+}
 
 module.exports = router;
