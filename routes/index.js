@@ -11,6 +11,7 @@ router.get('/api/login', function(request, response) {
 });
 
 router.get('/api/callback', function(request, response) {
+    console.log(request);
     var curNumber = numbers[request.query.phone];
     curNumber.uber.authorization({
         authorization_code: request.query.code
@@ -36,21 +37,35 @@ router.get('/api/callback', function(request, response) {
     });
 });
 
+router.get('/api/status', function(req, res) {
+    var status = req.meta.status;
+    var uber_id = req.meta.user_id;
+    console.log(status);
+    res.send("OK");
+});
+
 var requestUbers = function(convoy, access_token, refresh_token) {
     for (car of convoy.cars) {
         console.log("LOOPING CARS");
         console.log(car);
-        numbers[car.captain].uber.requests.create({
-            "product_id": car.type,
-            "start_latitude": convoy.src.lat,
-            "start_longitude": convoy.src.lng,
-            "end_latitude": convoy.dest.lat,
-            "end_longitude": convoy.dest.lng
-        }, function(err, res) {
+        numbers[car.captain].uber.users.getProfile(function(err, res) {
             if (err) console.log(err);
             else {
-                car.uber = res;
                 console.log(res);
+                numbers[car.captain].uber.requests.create({
+                    "product_id": car.type,
+                    "start_latitude": convoy.src.lat,
+                    "start_longitude": convoy.src.lng,
+                    "end_latitude": convoy.dest.lat,
+                    "end_longitude": convoy.dest.lng
+                }, function(err, res) {
+                    if (err) console.log(err);
+                    else {
+                        car.uber = res;
+                        console.log(res);
+                    }
+                });
+
             }
         });
     }
@@ -70,6 +85,7 @@ var startAuth = function(convoy) {
 // Data structures
 var numbers = {};
 var convoys = {};
+var ubers = {};
 
 // Constructors for data structure items
 function number(digits) {
@@ -80,7 +96,7 @@ function number(digits) {
         client_id: '***REMOVED***',
         client_secret: '***REMOVED***',
         server_token: '***REMOVED***',
-        redirect_uri: 'https://087af77a.ngrok.io/api/callback' +
+        redirect_uri: "https://087af77a.ngrok.io/api/callback" +
             '?phone=' + encodeURIComponent(digits),
         name: 'Convoy',
         language: 'en_US', // optional, defaults to en_US
@@ -106,6 +122,10 @@ function car(captain) {
     this.riders = [];
     this.type = null;
     this.uber = null;
+}
+function uber(captain, uberId) {
+    this.captain = captain;
+    this.uberId = uberId;
 }
 
 /* GET home page. */
@@ -348,6 +368,7 @@ var stringGetWord = function(str, i) {
 var reply = function(res, msg) {
     var twilio = require('twilio');
     var twiml = new twilio.TwimlResponse();
+    console.log("reply: " + msg);
     twiml.message(msg);
     res.writeHead(200, {
         'Content-Type': 'text/xml'
@@ -360,6 +381,7 @@ var send = function(number, msg) {
     var authToken = '***REMOVED***';
     var twilio = require('twilio');
     var client = new twilio.RestClient(accountSid, authToken);
+    console.log("send: " + msg);
 
     client.messages.create({
         body: msg,
