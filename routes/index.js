@@ -31,10 +31,11 @@ router.get('/api/callback', function(request, response) {
     });
 });
 
-router.get('/api/status', function(req, res) {
-    var status = req.meta.status;
-    var uber_id = req.meta.user_id;
-    console.log(status);
+router.post('/api/status', function(req, res) {
+    console.log(req.body);
+    //var status = req.meta.status;
+    //var uber_id = req.meta.user_id;
+    //console.log(status);
     res.send("OK");
 });
 
@@ -44,16 +45,39 @@ var requestUbers = function(convoy, access_token, refresh_token) {
         console.log(car);
         console.log(numbers[car.captain]);
         var number = numbers[car.captain];
+        /*number.uber.requests.getCurrent(function(err, res) {
+            if (err) {
+                console.log("===========ERROR PROFILES=========");
+                console.log(err);
+            } else console.log(res);
+        });*/
         number.uber.user.getProfile(function(err, res) {
             if (err) {
-                console.log("===========ERROR=========")
+                console.log("===========ERROR PROFILES=========");
                 console.log(err);
             } else {
-                console.log("===========SUCCESS=========")
+                console.log("===========SUCCESS PROFILES=========");
                 console.log(res);
+                number.uber.requests.create({
+                    "product_id": car.type,
+                    "start_latitude": convoy.src.lat,
+                    "start_longitude": convoy.src.lng,
+                    "end_latitude": convoy.dest.lat,
+                    "end_longitude": convoy.dest.lng
+                }, function(err, res) {
+                    if (err) {
+                        console.log("===========ERROR=========");
+                        console.log(err);
+                    }
+                    else {
+                        console.log("===========SUCCESS=========");
+                        car.uber = res;
+                        console.log(res);
+                    }
+                });
             }
         });
-        number.uber.user.getProfile(function(err, res) {
+        /*number.uber.user.getProfile(function(err, res) {
             if (err) console.log(err);
             else {
                 console.log(res);
@@ -72,7 +96,7 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                 });
 
             }
-        });
+        });*/
     }
 }
 
