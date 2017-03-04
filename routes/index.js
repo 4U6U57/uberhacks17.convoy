@@ -23,13 +23,13 @@ router.get('/api/callback', function(request, response) {
             //response.redirect('/web/index.html');
             console.log(access_token);
             console.log(refresh_token);
-
             var group = convoys[curNumber.convoyId];
             group.unconfirmed--;
             if (group.unconfirmed == 0) {
                 //assemble ubers
                 console.log("CALL ZEEEE UBERZZ");
-                requestUbers(convoys[curNumber.convoyId], access_token, refresh_token);
+                requestUbers(convoys[curNumber.convoyId], access_token,
+                    refresh_token);
             }
             response.send("OK");
         }
@@ -59,7 +59,9 @@ var requestUbers = function(convoy, access_token, refresh_token) {
 var startAuth = function(convoy) {
     for (car of convoy.cars) {
         var number = numbers[car.captain];
-        var message = "Congrats, you are the captain of your car! Please login here to confirm the ride: " + number.url;
+        var message =
+            "Congrats, you are the captain of your car! Please login here to confirm the ride: " +
+            number.url;
         send(number.digits, message);
     }
 
@@ -154,7 +156,7 @@ router.post('/convoy', function(req, res) {
         console.log("user.state: " + user.state);
         switch (user.state) {
             case "new_user":
-                switch (stringGetWord(msg, 0)) {
+                switch (stringGetWord(msg, 0).toLowerCase()) {
                     case "convoy":
                         user.state = "convoy_init";
                         break;
@@ -260,7 +262,8 @@ router.post('/convoy', function(req, res) {
                         break loop;
                     default:
                         reply(res, "Tell others to msg '" + user.convoyId +
-                            "' to join. Msg 'done' to close the convoy. Msg 'kill' to cancel.");
+                            "' to join. Msg 'done' to close the convoy. Msg 'kill' to cancel."
+                        );
                         break loop;
                 }
                 break;
@@ -472,7 +475,7 @@ var selectCaptains = function(convoy, numCars) {
 }
 
 function getRandomArbitrary(max) {
-    return Math.random() * max;   
+    return Math.random() * max;
 }
 
 
