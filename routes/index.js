@@ -24,20 +24,22 @@ router.get('/api/callback', function(request, response) {
             console.log(access_token);
             console.log(refresh_token);
 
-            var group = convoys[numbers[curNumber].convoyId];
+            var group = convoys[curNumber.convoyId];
             group.unconfirmed--;
             if (group.unconfirmed == 0) {
                 //assemble ubers
                 console.log("CALL ZEEEE UBERZZ");
-                requestUber(convoys[curNumber.convoyId], access_token, refresh_token);
+                requestUbers(convoys[curNumber.convoyId], access_token, refresh_token);
             }
             response.send("OK");
         }
     });
 });
 
-var requestUbers = function(convoy, type, access_token, refresh_token) {
+var requestUbers = function(convoy, access_token, refresh_token) {
     for (car of convoy.cars) {
+        console.log("LOOPING CARS");
+        console.log(car);
         numbers[car.captain].uber.requests.create({
             "product_id": car.type,
             "start_latitude": convoy.src.lat,
@@ -45,7 +47,7 @@ var requestUbers = function(convoy, type, access_token, refresh_token) {
             "end_latitude": convoy.dest.lat,
             "end_longitude": convoy.dest.lng
         }, function(err, res) {
-            if (err) console.error(err);
+            if (err) console.log(err);
             else {
                 car.uber = res;
                 console.log(res);
@@ -457,7 +459,9 @@ var selectCaptains = function(convoy, numCars) {
     var captains = [];
 
     for (var i = 0; i < numCars; i++) {
-        randomValue = getRandomArbitrary(0, currentMembers.length - 1);
+        randomValue = Math.floor(Math.random() * currentMembers.length);
+        console.log("RANDOM");
+        console.log(randomValue);
 
         captains.push(currentMembers[randomValue]);
         currentMembers[randomValue] = currentMembers[currentMembers.length - 1];
@@ -467,8 +471,8 @@ var selectCaptains = function(convoy, numCars) {
     return captains;
 }
 
-function getRandomArbitrary(min, max) {
-    return Math.random() * (max - min) + min;
+function getRandomArbitrary(max) {
+    return Math.random() * max;   
 }
 
 
