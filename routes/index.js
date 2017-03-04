@@ -1,6 +1,48 @@
 var express = require('express');
+var Uber = require('node-uber');
+var twilio = require('twilio');
 var router = express.Router();
 var randomWords = require('random-words');
+var uber = new Uber({
+	client_id: '***REMOVED***',
+	client_secret: '***REMOVED***',
+	server_token: '***REMOVED***',
+	redirect_uri: 'https://087af77a.ngrok.io/api/callback',
+	name: 'Convoy',
+	language: 'en_US', // optional, defaults to en_US
+	sandbox: true // optional, defaults to false
+});
+
+router.get('/api/login', function(request, response) {
+	var url = uber.getAuthorizeUrl(['history', 'profile', 'request', 'places']);
+	response.redirect(url);
+});
+
+router.get('/api/callback', function(request, response) {
+	uber.authorization({
+		authorization_code: request.query.code
+	}, function(err, access_token, refresh_token) {
+		if (err) {
+			console.error(err);
+		} else {
+			// store the user id and associated access token
+			// redirect the user back to your actual app
+			//response.redirect('/web/index.html');
+			console.log(access_token);
+			console.log(refresh_token);
+			requestUber(access_token, refresh_token);
+			response.send("OK");
+		}
+	});
+});
+
+var requestUber = function(access_token, refresh_token) {
+	console.log("Reqeust");
+	/*uber.user.getProfile(function(err, res) {
+	  if (err) console.log(err);
+	  else console.log(res);
+	  });*/
+}
 
 // Data structures
 var numbers = {};
@@ -11,6 +53,7 @@ function number() {
 	this.state = "new_user";
 	this.convoyId = null;
 }
+
 function convoy(commander) {
 	this.commander = commander;
 	this.members = [];
@@ -18,6 +61,7 @@ function convoy(commander) {
 	this.src = "";
 	this.dest = "";
 }
+
 function car(captain) {
 	this.captain = captain;
 	this.riders = [];
@@ -110,10 +154,11 @@ var getConvoyStuff = function(convoy) {};
 
 // Put helper functions here
 var getOptCode = function(msg) {
+
 	var optCode;
 
-	switch(msg){
-		case "convoy" || "to":
+	switch (msg) {
+		case "convoy", "to":
 			optCode = 1;
 			break;
 		case "from":
@@ -128,10 +173,11 @@ var getOptCode = function(msg) {
 		case "done":
 			optCode = 5;
 			break;
-		default: {
-			optCode = -1;
-			break;
-		}
+		default:
+			{
+				optCode = -1;
+				break;
+			}
 	}
 
 	return optCode;
@@ -143,18 +189,18 @@ var parseConvoy = function(tokenizeResponse) {
 	var starting = "";
 	var trigger = -1;
 
-	for(var i = 0; i < tokenizeResponse.length; i++){
+	for (var i = 0; i < tokenizeResponse.length; i++) {
 
-		if(tokenizeResponse[i] === "from"){
+		if (tokenizeResponse[i] === "from") {
 			i++;
 			trigger = 1;
-		} else if(tokenizeResponse[i] === "to"){
+		} else if (tokenizeResponse[i] === "to") {
 			i++;
 			trigger = 0;
 		}
-		if(trigger === 0){
+		if (trigger === 0) {
 			destination += tokenizeResponse[i] + " ";
-		} else if(trigger === 1){
+		} else if (trigger === 1) {
 			starting += tokenizeResponse[i] + " ";;
 		}
 	}
@@ -164,12 +210,11 @@ var parseConvoy = function(tokenizeResponse) {
 		end: destination
 	}
 
-	if(trigger === -1){
+	if (trigger === -1) {
 		console.log("Could not find 'from' or 'convoy to'");
-	} else{
+	} else {
 		return convoy;
 	}
-
 };
 
 var stringGetWord = function(str, i) {
