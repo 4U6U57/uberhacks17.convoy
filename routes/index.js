@@ -6,7 +6,9 @@ var geocode = require('./geocodeAddress.js');
 var randomWords = require('random-words');
 
 router.get('/api/login', function(request, response) {
-    var url = uber.getAuthorizeUrl(['history', 'profile', 'request', 'places']);
+    var url = uber.getAuthorizeUrl(['history', 'profile', 'request',
+        'places'
+    ]);
     response.redirect(url);
 });
 
@@ -46,7 +48,8 @@ function number(digits) {
         client_id: '***REMOVED***',
         client_secret: '***REMOVED***',
         server_token: '***REMOVED***',
-        redirect_uri: 'https://087af77a.ngrok.io/api/callback' + '?phone=' + encodeURIComponent(digits),
+        redirect_uri: 'https://087af77a.ngrok.io/api/callback' +
+            '?phone=' + encodeURIComponent(digits),
         name: 'Convoy',
         language: 'en_US', // optional, defaults to en_US
         sandbox: true // optional, defaults to false
@@ -57,6 +60,7 @@ function number(digits) {
 
 function convoy(commander) {
     this.commander = commander;
+    this.open = true;
     this.members = [];
     this.cars = {};
     this.src = {};
@@ -69,9 +73,6 @@ function car(captain) {
     this.type = null;
     this.uber = null;
 }
-
-// Functions for data structure items
-
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -117,8 +118,7 @@ router.post('/convoy', function(req, res) {
     console.log("GET " + digits + " " + msg);
     if (numbers[digits] == null) numbers[digits] = new number(digits);
     var user = numbers[digits];
-    var loop = true;
-    while (loop) {
+    loop: while (true) {
         console.log("user.state: " + user.state);
         switch (user.state) {
             case "new_user":
@@ -131,8 +131,7 @@ router.post('/convoy', function(req, res) {
                         break;
                     default:
                         reply(res, "Command not recognized");
-                        loop = false;
-                        break;
+                        break loop;
                 }
                 break;
             case "convoy_init":
@@ -147,50 +146,97 @@ router.post('/convoy', function(req, res) {
                         } while (convoys[id] != null);
                         console.log("created convoy " + id);
                         convoys[id] = new convoy(digits);
+                        var group = convoys[id];
+                        group.commander = digits;
+                        group.members.push(digits);
+                        user.state = "convoy_wait";
                         user.convoyId = id;
-                        geocode.geocodeAddress(parsed.start, (errorMessage, results) => {
-                            if (errorMessage)
+                        geocode.geocodeAddress(parsed.start, (
+                            errorMessage, results) => {
+                            if (errorMessage) {
                                 console.log(errorMessage);
-                            else {
-                                convoys[user.convoyId].src = results;
-                                geocode.geocodeAddress(parsed.end, (errorMessage, results) => {
-                                    if (errorMessage)
-                                        console.log(errorMessage);
-                                    else {
-                                        convoys[user.convoyId].dest = results;
-                                        reply(res, "Created convoy from " + convoys[user.convoyId].src.address + " to " +
-                                            convoys[user.convoyId].dest.address +
-                                            ". Tell your friends to send us 'join " +
-                                            user.convoyId + "'!");
+                                convoys[user.convoyId] = null;
+                                numbers[digits] = null;
+                            } else {
+                                var group = convoys[user.convoyId];
+                                group.src = results;
+                                geocode.geocodeAddress(parsed.end,
+                                    (errorMessage, results) => {
+                                        if (errorMessage) {
+                                            console.log(errorMessage);
+                                            convoys[user.convoyId] = null;
+                                            numbers[digits] = null;
+                                        } else {
+                                            group.dest = results;
+                                            reply(res,
+                                                "Created convoy from " +
+                                                group.src.address +
+                                                " to " +
+                                                group.dest.address +
+                                                ". Tell your friends to send us 'join " +
+                                                user.convoyId +
+                                                "', and send 'done' to start."
+                                            );
+                                        }
                                     }
-                                });
+                                );
                             }
                         });
                     }
-                    loop = false;
                 } else {
-                    reply(res, "Invalid convoy syntax. Use 'convoy from SOURCE to DEST'");
-                    loop = false;
+                    reply(res,
+                        "Invalid convoy syntax. Use 'convoy from SOURCE to DEST'");
                 }
-                break;
+                break loop;
             case "convoy_join":
                 var id = stringGetWord(msg, 1);
                 console.log("requested to join " + id);
                 var group = convoys[id];
                 if (group == null) {
-                    reply(res, id + " is not a valid convoy. :(");
-                    loop = false;
+                    reply(res, "'" + id + "' is not a valid convoy. :(");
+                    user.state = "new_user";
+                } else if (!group.open) {
+                    reply(res, "'" + id + "' is no longer open. ;_;");
+                    user.state = "new_user";
+                } else {
+                    group.members.push(digits);
+                    user.convoyId = id;
+                    user.state = "user_wait";
+                    send(group.commander, digits + " has joined your convoy.");
+                    reply(res, "You've joined " + group.commander +
+                        "'s convoy! Get ready to go from " + group.src.address +
+                        " to " +
+                        group.dest.address + ".");
                 }
-                user.convoyId = id;
-                user.state = "wait";
-                reply(res, "You're in! Get ready to go from " + group.src.address +
-                    " to " + group.dest.address);
-                loop = false;
-                break;
-            case "wait":
-                break;
+                break loop;
+            case "user_wait":
+                reply(res, "user_wait not yet configured");
+                break loop;
+            case "convoy_wait":
+                var group = convoys[user.convoyId];
+                switch (msg.toLowerCase()) {
+                    case 'done':
+                        group.open = false;
+                        user.state = "uber";
+                        reply(res, "Closing convoy. There are " + group.members.length +
+                            " members: " + group.members);
+                        break;
+                    case 'kill':
+                        group.open = false;
+                        numbers[digits] = new number();
+                        break;
+                    default:
+                        reply(res, "Tell others to msg '" + user.convoyId +
+                            "' to join. Msg 'done' to close the convoy. Msg 'kill' to cancel.");
+                        break;
+                }
+                break loop;
+            case "uber":
+                reply(res, "uber not yet configured");
+                break loop;
             default:
-                break;
+                reply(res, "Congrats! You broke Convoy. Have a cookie.");
+                break loop;
         }
     }
 });
@@ -276,35 +322,51 @@ var reply = function(res, msg) {
     res.end(twiml.toString());
 }
 
+var send = function(number, msg) {
+    var accountSid = '***REMOVED***';
+    var authToken = '***REMOVED***';
 
-var cheapestCombination = function(numRiders){
+    var twilio = require('twilio');
+    var client = new twilio.RestClient(accountSid, authToken);
 
-  var uberReservations = {
-    xlReserves: 0,
-    xReserves: 0
-  };
+    client.messages.create({
+        body: msg,
+        to: number, // Text this number
+        from: '+15042266869' // From a valid Twilio number
+    }, function(err, message) {
+        console.log(message.sid);
+    });
 
-  if(numRiders > carCapacity("X")){
-    while(numRiders > carCapacity("X")){
-      numRiders -= carCapacity("XL");
-      uberReservations.xlReserves += 1;
+}
+
+var cheapestCombination = function(numRiders) {
+
+    var uberReservations = {
+        xlReserves: 0,
+        xReserves: 0
+    };
+
+    if (numRiders > carCapacity("X")) {
+        while (numRiders > carCapacity("X")) {
+            numRiders -= carCapacity("XL");
+            uberReservations.xlReserves += 1;
+        }
+    } else {
+        while (numRiders >= 0) {
+            numRiders -= carCapacity("X");
+            uberReservations.xReserves += 1;
+        }
     }
-  } else {
-    while(numRiders >= 0){
-      numRiders -= carCapacity("X");
-      uberReservations.xReserves += 1;
+
+    if (numRiders > carCapacity("X")) {
+        numRiders -= carCapacity("XL");
+        uberReservations.xlReserves += 1;
+    } else if (numRiders >= 1) {
+        numRiders -= carCapacity("X");
+        uberReservations.xReserves += 1;
     }
-  }
 
-  if(numRiders > carCapacity("X")){
-    numRiders -= carCapacity("XL");
-    uberReservations.xlReserves += 1;
-  } else if(numRiders >= 1) {
-    numRiders -= carCapacity("X");
-    uberReservations.xReserves += 1;
-  }
-
-  return uberReservations;
+    return uberReservations;
 }
 
 var carCapacity = function(car){
@@ -314,6 +376,7 @@ var carCapacity = function(car){
     return 4;
   }
   return -1;
+
 }
 
 var prepTrip = function(convoy) {
