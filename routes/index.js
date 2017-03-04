@@ -33,9 +33,21 @@ router.get('/api/callback', function(request, response) {
 
 router.post('/api/status', function(req, res) {
     console.log(req.body);
-    //var status = req.meta.status;
-    //var uber_id = req.meta.user_id;
-    //console.log(status);
+    var status = req.meta.status;
+    var uuid = req.meta.user_id;
+    var captain = null;
+    for(number of numbers.keys)
+        if(numbers[number].uuid === uuid)
+            captain = number;
+    if(captain !== null) {
+        var group = convoys[captain];
+        var car = null;
+        for(psy of convoy.cars)
+            if(psy.captain === captain)
+                car = psy;
+        for(rider of convoy.riders)
+            send(rider, "You are riding with " + number[captain].name);
+    }
     res.send("OK");
 });
 
@@ -57,7 +69,9 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                 console.log(err);
             } else {
                 console.log("===========SUCCESS PROFILES=========");
-                console.log(res);
+                console.log(res.uuid);
+                number.name = res.first_name + " " + res.last_name;
+                number.uuid = res.uuid;
                 number.uber.requests.create({
                     "product_id": car.type,
                     "start_latitude": convoy.src.lat,
@@ -114,7 +128,6 @@ var startAuth = function(convoy) {
 // Data structures
 var numbers = {};
 var convoys = {};
-var ubers = {};
 
 // Constructors for data structure items
 function number(digits) {
@@ -131,6 +144,8 @@ function number(digits) {
         language: 'en_US', // optional, defaults to en_US
         sandbox: true // optional, defaults to false
     });
+    this.uuid = null;
+    this.name = "";
     this.url = this.uber.getAuthorizeUrl(['profile', 'request']);
     console.log(this.url);
 
@@ -151,11 +166,6 @@ function car(captain) {
     this.riders = [];
     this.type = null;
     this.uber = null;
-}
-
-function uber(captain, uberId) {
-    this.captain = captain;
-    this.uberId = uberId;
 }
 
 /* GET home page. */
