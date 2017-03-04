@@ -6,9 +6,7 @@ var geocode = require('./geocodeAddress.js');
 var randomWords = require('random-words');
 
 router.get('/api/login', function(request, response) {
-    var url = uber.getAuthorizeUrl(['history', 'profile', 'request',
-        'places'
-    ]);
+    var url = uber.getAuthorizeUrl(['request']);
     response.redirect(url);
 });
 
@@ -25,7 +23,14 @@ router.get('/api/callback', function(request, response) {
             //response.redirect('/web/index.html');
             console.log(access_token);
             console.log(refresh_token);
-            requestUber(curNumber, access_token, refresh_token);
+
+            var group = convoys[numbers[curNumber].convoyId];
+            group.unconfirmed--;
+            if (group.unconfirmed == 0) {
+                //assemble ubers
+                console.log("CALL ZEEEE UBERZZ");
+                //requestUber(curNumber, access_token, refresh_token);
+            }
             response.send("OK");
         }
     });
@@ -46,6 +51,15 @@ var requestUber = function(curNumber, type, access_token, refresh_token) {
     });
 }
 
+var startAuth = function(convoy) {
+    for (car of convoy.cars) {
+        var number = numbers[car.captain];
+        var message = "Congrats, you are the captain of your car! Please login here to confirm the ride: " + number.url;
+        send(number.digits, message);
+    }
+
+}
+
 // Data structures
 var numbers = {};
 var convoys = {};
@@ -54,6 +68,7 @@ var convoys = {};
 function number(digits) {
     this.state = "new_user";
     this.convoyId = null;
+    this.digits = digits;
     this.uber = new Uber({
         client_id: '***REMOVED***',
         client_secret: '***REMOVED***',
@@ -76,6 +91,7 @@ function convoy(commander) {
     this.cars = {};
     this.src = {};
     this.dest = {};
+    this.unconfirmed = 0;
 }
 
 function car(captain) {
@@ -228,23 +244,21 @@ router.post('/convoy', function(req, res) {
                 switch (msg.toLowerCase()) {
                     case 'done':
                         group.open = false;
-                        user.state = "uber";
-                        reply(res, "Closing convoy. There are " + group.members.length +
+                        //user.state = "uber";
+                        send(digits, "Starting convoy. There are " + group.members.length +
                             " members: " + group.members);
+                        prepTrip(group);
                         break;
                     case 'kill':
                         group.open = false;
                         numbers[digits] = new number();
-                        break;
+                        break loop;
                     default:
                         reply(res, "Tell others to msg '" + user.convoyId +
                             "' to join. Msg 'done' to close the convoy. Msg 'kill' to cancel.");
-                        break;
+                        break loop;
                 }
-                break loop;
-            case "uber":
-                reply(res, "uber not yet configured");
-                break loop;
+                break;
             default:
                 reply(res, "Congrats! You broke Convoy. Have a cookie.");
                 break loop;
@@ -379,74 +393,81 @@ var cheapestCombination = function(numRiders) {
     return uberReservations;
 }
 
-var carCapacity = function(car){
-  if(car === "XL"){
-    return 6;
-  } else if(car === "X"){
-    return 4;
-  }
-  return -1;
+var carCapacity = function(car) {
+    if (car === "XL") {
+        return 6;
+    } else if (car === "X") {
+        return 4;
+    }
+    return -1;
 
 }
 
 var prepTrip = function(convoy) {
-  var riderCount = convoy.members.length;
+    var riderCount = convoy.members.length;
 
-  var combination = cheapestCombination(count);
-  var numCars = combination.xlReserves + combination.xReserves;
-  var numXL = combination.xlReserves;
-  var numX = combination.xReserves;
-  var xlCode = "821415d8-3bd5-4e27-9604-194e4359a449";
-  var xCode = "a1111c8c-c720-46c3-8534-2fcdd730040d";
+    var combination = cheapestCombination(riderCount);
+    var numCars = combination.xlReserves + combination.xReserves;
+    var numXL = combination.xlReserves;
+    var numX = combination.xReserves;
+    var xlCode = "821415d8-3bd5-4e27-9604-194e4359a449";
+    var xCode = "a1111c8c-c720-46c3-8534-2fcdd730040d";
 
-  var captainList = selectCaptains(convoy, numCars);
-  var captainIterator = 0;
+    var captainList = selectCaptains(convoy, numCars);
+    var captainIterator = 0;
 
-  for(var i = 0; i < combination.xlReserves; i++){
-    var curcar = new car(captainList[captainIterator]);
-    captainIterator++;
-    curcar.type = xlCode;
-    convoy.cars.push(curcar);
-  }
-
-  for(var i = 0; i < combination.xReserves; i++){
-    var curcar = new car(captainList[captainIterator]);
-    captainIterator++;
-    curcar.type = xCode;
-    convoy.cars.push(curcar);
-  }
-
-
-  for(var i = 0; i < numCars; i++){
-    if(convoy.cars[i] === xlCode){
-      for(var i = 0; i < carCapacity("XL"); i++){
-        curcar.riders[i] = convoy.members[i];
-      }
-    }else if(convoy.cars[i] === xCode){
-      for(var i = 0; i < carCapacity("X"); i++){
-        curcar.riders[i] = convoy.members[i];
-      }
+    for (var i = 0; i < combination.xlReserves; i++) {
+        var curcar = new car(captainList[captainIterator]);
+        captainIterator++;
+        curcar.type = xlCode;
+        convoy.cars.push(curcar);
     }
-  }
+
+    for (var i = 0; i < combination.xReserves; i++) {
+        var curcar = new car(captainList[captainIterator]);
+        captainIterator++;
+        curcar.type = xCode;
+        convoy.cars.push(curcar);
+    }
+
+
+    for (var i = 0; i < numCars; i++) {
+        if (convoy.cars[i] === xlCode) {
+            for (var i = 0; i < carCapacity("XL"); i++) {
+                curcar.riders[i] = convoy.members[i];
+            }
+        } else if (convoy.cars[i] === xCode) {
+            for (var i = 0; i < carCapacity("X"); i++) {
+                curcar.riders[i] = convoy.members[i];
+            }
+        }
+    }
+
+    convoy.unconfirmed = captainList.length;
+    startAuth(convoy);
 }
 
-var selectCaptains = function(convoy, numCars){
-  var currentMembers = convoy.members;
-  var randomValue = -1;
-  var captains = [];
+var selectCaptains = function(convoy, numCars) {
+    var currentMembers = convoy.members;
+    var randomValue = -1;
+    var captains = [];
+    console.log("sleeeeeepy");
 
-  for(var i = 0; i < numCars; i++){
-    randomValue = getRandomArbitrary(0,currentMembers.length);
-    captains.push(currentMembers[randomValue]);
-    currentMembers[randomValue] = currentMembers[currentMembers.length-1];
-    currentMembers.length -= 1;
-  }
+    for (var i = 0; i < numCars; i++) {
+        randomValue = getRandomArbitrary(0, currentMembers.length);
+        captains.push(currentMembers[randomValue]);
+        currentMembers[randomValue] = currentMembers[currentMembers.length - 1];
+        currentMembers.length -= 1;
+    }
 
-  return captains;
+    console.log("awake");
+    console.log(captains);
+
+    return captains;
 }
 
 function getRandomArbitrary(min, max) {
-  return Math.random() * (max - min) + min;
+    return Math.random() * (max - min) + min;
 }
 
 
