@@ -2,46 +2,38 @@ var express = require('express');
 var Uber = require('node-uber');
 var twilio = require('twilio');
 var router = express.Router();
+var geocode = require('./geocodeAddress.js');
 var randomWords = require('random-words');
-var uber = new Uber({
-	client_id: '***REMOVED***',
-	client_secret: '***REMOVED***',
-	server_token: '***REMOVED***',
-	redirect_uri: 'https://087af77a.ngrok.io/api/callback',
-	name: 'Convoy',
-	language: 'en_US', // optional, defaults to en_US
-	sandbox: true // optional, defaults to false
-});
 
 router.get('/api/login', function(request, response) {
-	var url = uber.getAuthorizeUrl(['history', 'profile', 'request', 'places']);
-	response.redirect(url);
+    var url = uber.getAuthorizeUrl(['history', 'profile', 'request', 'places']);
+    response.redirect(url);
 });
 
 router.get('/api/callback', function(request, response) {
-	uber.authorization({
-		authorization_code: request.query.code
-	}, function(err, access_token, refresh_token) {
-		if (err) {
-			console.error(err);
-		} else {
-			// store the user id and associated access token
-			// redirect the user back to your actual app
-			//response.redirect('/web/index.html');
-			console.log(access_token);
-			console.log(refresh_token);
-			requestUber(access_token, refresh_token);
-			response.send("OK");
-		}
-	});
+    console.log("PHONE PHONE");
+    console.log(request.query.phone);
+    var client = numbers[request.query.phone];
+    console.log(client);
+    client.uber.authorization({
+        authorization_code: request.query.code
+    }, function(err, access_token, refresh_token) {
+        if (err) {
+            console.error(err);
+        } else {
+            // store the user id and associated access token
+            // redirect the user back to your actual app
+            //response.redirect('/web/index.html');
+            console.log(access_token);
+            console.log(refresh_token);
+            requestUber(access_token, refresh_token);
+            response.send("OK");
+        }
+    });
 });
 
 var requestUber = function(access_token, refresh_token) {
-	console.log("Reqeust");
-	/*uber.user.getProfile(function(err, res) {
-	  if (err) console.log(err);
-	  else console.log(res);
-	  });*/
+    console.log("Reqeust");
 }
 
 // Data structures
@@ -49,23 +41,34 @@ var numbers = {};
 var convoys = {};
 
 // Constructors for data structure items
-function number() {
-	this.state = "new_user";
-	this.convoyId = null;
+function number(digits) {
+    this.state = "new_user";
+    this.convoyId = null;
+    this.uber = new Uber({
+        client_id: '***REMOVED***',
+        client_secret: '***REMOVED***',
+        server_token: '***REMOVED***',
+        redirect_uri: 'https://087af77a.ngrok.io/api/callback' + '?phone=' + encodeURIComponent(digits),
+        name: 'Convoy',
+        language: 'en_US', // optional, defaults to en_US
+        sandbox: true // optional, defaults to false
+    });
+    this.url = this.uber.getAuthorizeUrl(['request']);
+
 }
 
 function convoy(commander) {
-	this.commander = commander;
-	this.members = [];
-	this.cars = {};
-	this.src = "";
-	this.dest = "";
+    this.commander = commander;
+    this.members = [];
+    this.cars = {};
+    this.src = {};
+    this.dest = {};
 }
 
 function car(captain) {
-	this.captain = captain;
-	this.riders = [];
-	this.uber = null;
+    this.captain = captain;
+    this.riders = [];
+    this.uber = null;
 }
 
 // Functions for data structure items
@@ -73,80 +76,102 @@ function car(captain) {
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-	res.render('index', {
-		title: 'Express'
-	});
+    res.render('index', {
+        title: 'Express'
+    });
 });
 
 router.post('/receive', function(req, res) {
-	console.log(req.body);
-	var twilio = require('twilio');
-	var twiml = new twilio.TwimlResponse();
-	twiml.message('The Robots are coming! Head for the hills!');
-	res.writeHead(200, {
-		'Content-Type': 'text/xml'
-	});
-	res.end(twiml.toString());
+    console.log(req.body);
+    var twilio = require('twilio');
+    var twiml = new twilio.TwimlResponse();
+    twiml.message('The Robots are coming! Head for the hills!');
+    res.writeHead(200, {
+        'Content-Type': 'text/xml'
+    });
+    res.end(twiml.toString());
 });
 
 router.get('/send', function(req, res, next) {
-	// Your Account SID from www.twilio.com/console
-	var accountSid = '***REMOVED***';
-	// Your Auth Token from www.twilio.com/console
-	var authToken = '***REMOVED***';
+    // Your Account SID from www.twilio.com/console
+    var accountSid = '***REMOVED***';
+    // Your Auth Token from www.twilio.com/console
+    var authToken = '***REMOVED***';
 
-	var twilio = require('twilio');
-	var client = new twilio.RestClient(accountSid, authToken);
+    var twilio = require('twilio');
+    var client = new twilio.RestClient(accountSid, authToken);
 
-	client.messages.create({
-		body: 'Hello from Node',
-		to: '+***REMOVED***', // Text this number
-		from: '+15042266869 ' // From a valid Twilio number
-	}, function(err, message) {
-		console.log(message.sid);
-	});
+    client.messages.create({
+        body: 'Hello from Node',
+        to: '+***REMOVED***', // Text this number
+        from: '+15042266869 ' // From a valid Twilio number
+    }, function(err, message) {
+        console.log(message.sid);
+    });
 });
 
 router.post('/convoy', function(req, res) {
-	var digits = req.body.From;
-	var msg = req.body.Body;
-	if(! numbers[digits]) numbers[digits] = new number();
-	var user = numbers[digits];
-	var loop = true;
-	while(loop) {
-		switch(user.state) {
-			case "new_user":
-				switch(stringGetWord(msg, 0)) {
-					case "convoy":
-						user.state = "convoy_init";
-						break;
-					case "join":
-						user.state = "convoy_join";
-						break;
-					default:
-						reply("Command not recognized");
-				}
-				break;
-			case "convoy_init":
-				if(! user.convoyId) {
-					user.convoyId = randomWords();
-					convoy[user.convoyId] = new convoy(digits);
-				};
-				// TODO: Actually recognize src and dest
-				break;
-			case "convoy_join":
-				var id = stringGetWord(msg, 1);
-				if(! convoy[id]) reply(id + " is not a valid convoy. :(");
-				user.convoyId = id;
-				user.state = "wait";
-				loop = false;
-				break;
-			case "wait":
-				break;
-			default:
-				break;
-		}
-	}
+    var digits = req.body.From;
+    var msg = req.body.Body;
+    if (numbers[digits] == null) {
+        numbers[digits] = new number(digits);
+    }
+    console.log(digits);
+    console.log(numbers[digits].url);
+    var user = numbers[digits];
+    var loop = true;
+    while (loop) {
+        switch (user.state) {
+            case "new_user":
+                switch (stringGetWord(msg, 0)) {
+                    case "convoy":
+                        user.state = "convoy_init";
+                        break;
+                    case "join":
+                        user.state = "convoy_join";
+                        break;
+                    default:
+                        reply("Command not recognized");
+                }
+                break;
+            case "convoy_init":
+                if (!user.convoyId) {
+                    user.convoyId = randomWords();
+                    convoy[user.convoyId] = new convoy(digits);
+                };
+                var parsedWaypoints = parseConvoy(msg.toLowerCase().split(' '));
+                geocode.geocodeAddress(parsedWaypoints.start, (errorMessage, results) => {
+                    if (errorMessage)
+                        console.log(errorMessage);
+                    else {
+                        convoy[user.convoyId].src = results;
+                        console.log(convoy[user.convoyId].src);
+                        geocode.geocodeAddress(parsedWaypoints.end, (errorMessage, results) => {
+                            if (errorMessage)
+                                console.log(errorMessage);
+                            else {
+                                convoy[user.convoyId].dest = results;
+                                console.log(convoy[user.convoyId].dest);
+                                //requestUber()
+                            }
+                        });
+                    }
+                });
+                break;
+            case "convoy_join":
+                var id = stringGetWord(msg, 1);
+                if (!convoy[id]) reply(id + " is not a valid convoy. :(");
+                user.convoyId = id;
+                user.state = "wait";
+                loop = false;
+                break;
+            case "wait":
+                break;
+            default:
+                loop = false;
+                break;
+        }
+    }
 });
 
 // Put abstracted functions here
@@ -155,79 +180,79 @@ var getConvoyStuff = function(convoy) {};
 // Put helper functions here
 var getOptCode = function(msg) {
 
-	var optCode;
+    var optCode;
 
-	switch (msg) {
-		case "convoy", "to":
-			optCode = 1;
-			break;
-		case "from":
-			optCode = 2;
-			break;
-		case "yes":
-			optCode = 3;
-			break;
-		case "no":
-			optCode = 4;
-			break;
-		case "done":
-			optCode = 5;
-			break;
-		default:
-			{
-				optCode = -1;
-				break;
-			}
-	}
+    switch (msg) {
+        case "convoy", "to":
+            optCode = 1;
+            break;
+        case "from":
+            optCode = 2;
+            break;
+        case "yes":
+            optCode = 3;
+            break;
+        case "no":
+            optCode = 4;
+            break;
+        case "done":
+            optCode = 5;
+            break;
+        default:
+            {
+                optCode = -1;
+                break;
+            }
+    }
 
-	return optCode;
+    return optCode;
 };
 
 
 var parseConvoy = function(tokenizeResponse) {
-	var destination = "";
-	var starting = "";
-	var trigger = -1;
+    var destination = "";
+    var starting = "";
+    var trigger = -1;
 
-	for (var i = 0; i < tokenizeResponse.length; i++) {
+    for (var i = 0; i < tokenizeResponse.length; i++) {
 
-		if (tokenizeResponse[i] === "from") {
-			i++;
-			trigger = 1;
-		} else if (tokenizeResponse[i] === "to") {
-			i++;
-			trigger = 0;
-		}
-		if (trigger === 0) {
-			destination += tokenizeResponse[i] + " ";
-		} else if (trigger === 1) {
-			starting += tokenizeResponse[i] + " ";;
-		}
-	}
+        if (tokenizeResponse[i] === "from") {
+            i++;
+            trigger = 1;
+        } else if (tokenizeResponse[i] === "to") {
+            i++;
+            trigger = 0;
+        }
+        if (trigger === 0) {
+            destination += tokenizeResponse[i] + " ";
+        } else if (trigger === 1) {
+            starting += tokenizeResponse[i] + " ";;
+        }
+    }
 
-	var convoy = {
-		start: starting,
-		end: destination
-	}
+    var convoy = {
+        start: starting,
+        end: destination
+    }
 
-	if (trigger === -1) {
-		console.log("Could not find 'from' or 'convoy to'");
-	} else {
-		return convoy;
-	}
+    if (trigger === -1) {
+        console.log("Could not find 'from' or 'convoy to'");
+    } else {
+        return convoy;
+    }
 };
 
 var stringGetWord = function(str, i) {
-	return str.split(" ")[i].toLowerCase();
+    return str.split(" ")[i].toLowerCase();
 };
 var reply = function(res, msg) {
-	var twilio = require('twilio');
-	var twiml = new twilio.TwimlResponse();
-	twiml.message(msg);
-	res.writeHead(200, {
-		'Content-Type': 'text/xml'
-	});
-	res.end(twiml.toString());
+    var twilio = require('twilio');
+    var twiml = new twilio.TwimlResponse();
+    twiml.message(msg);
+    res.writeHead(200, {
+        'Content-Type': 'text/xml'
+    });
+    res.end(twiml.toString());
 }
 
 module.exports = router;
