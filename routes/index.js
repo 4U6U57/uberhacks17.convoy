@@ -37,9 +37,9 @@ router.post('/api/status', function(req, res) {
     var status = req.body.meta.status;
     var uuid = req.body.meta.user_id;
     var captain = null;
-    for (number in numbers)
-        if (numbers[number].uuid === uuid)
-            captain = number;
+    for (anumber in numbers)
+        if (numbers[anumber].uuid === uuid)
+            captain = anumber;
     if (captain !== null) {
         var group = convoys[numbers[captain].convoyId];
         var car = null;
@@ -75,8 +75,8 @@ var requestUbers = function(convoy, access_token, refresh_token) {
         console.log("LOOPING CARS");
         console.log(car);
         console.log(numbers[car.captain]);
-        var number = numbers[car.captain];
-        number.uber.requests.getCurrent(function(err, res) {
+        var anumber = numbers[car.captain];
+        anumber.uber.requests.getCurrent(function(err, res) {
             if (err) {
                 console.log("===========NO CURRENT=========");
                 console.log(err);
@@ -85,15 +85,15 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                 console.log(res);
             }
         });
-        number.uber.user.getProfile(function(err, res) {
+        anumber.uber.user.getProfile(function(err, res) {
             if (err) {
                 console.log("===========ERROR PROFILES=========");
                 console.log(err);
             } else {
                 console.log("===========SUCCESS PROFILES=========");
                 console.log(res.uuid);
-                number.name = res.first_name + " " + res.last_name;
-                number.uuid = res.uuid;
+                anumber.name = res.first_name + " " + res.last_name;
+                anumber.uuid = res.uuid;
                 var options = {
                     "product_id": car.type,
                     "start_latitude": convoy.src.lat,
@@ -101,7 +101,7 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                     "end_latitude": convoy.dest.lat,
                     "end_longitude": convoy.dest.lng
                 };
-                number.uber.requests.getEstimates(options, function(err, res) {
+                anumber.uber.requests.getEstimates(options, function(err, res) {
                     if (err) {
                         console.log("===========ERROR EST=========");
                         console.log(err);
@@ -112,7 +112,7 @@ var requestUbers = function(convoy, access_token, refresh_token) {
 
                     }
                 });
-                number.uber.requests.create(options, function(err, res) {
+                anumber.uber.requests.create(options, function(err, res) {
                     if (err) {
                         console.log("===========ERROR CALL=========");
                         console.log(err);
@@ -131,11 +131,11 @@ var requestUbers = function(convoy, access_token, refresh_token) {
 
 var startAuth = function(convoy) {
     for (car of convoy.cars) {
-        var number = numbers[car.captain];
+        var anumber = numbers[car.captain];
         var message =
             "Congrats, you are the captain of your car! Please login here to confirm the ride: " +
-            number.url;
-        send(number.digits, message);
+            anumber.url;
+        send(anumber.digits, message);
     }
 
 }
@@ -432,7 +432,7 @@ var reply = function(res, msg) {
     res.end(twiml.toString());
 }
 
-var send = function(number, msg) {
+var send = function(anumber, msg) {
     var accountSid = '***REMOVED***';
     var authToken = '***REMOVED***';
     var twilio = require('twilio');
@@ -441,7 +441,7 @@ var send = function(number, msg) {
 
     client.messages.create({
         body: msg,
-        to: number, // Text this number
+        to: anumber, // Text this number
         from: '+15042266869' // From a valid Twilio number
     }, function(err, message) {
         console.log(message.sid);

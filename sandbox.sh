@@ -1,5 +1,5 @@
 # Paste your access token in the quotes below
-#access_token=""
+access_token="$1"
 
 function change_status {
     curl -X "PUT" "https://sandbox-api.uber.com/v1/sandbox/requests/$2" \
