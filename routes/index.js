@@ -6,7 +6,9 @@ var geocode = require('./geocodeAddress.js');
 var randomWords = require('random-words');
 
 router.get('/api/login', function(request, response) {
-    var url = uber.getAuthorizeUrl(['history', 'profile', 'request', 'places']);
+    var url = uber.getAuthorizeUrl(['history', 'profile', 'request',
+        'places'
+    ]);
     response.redirect(url);
 });
 
@@ -46,7 +48,8 @@ function number(digits) {
         client_id: '***REMOVED***',
         client_secret: '***REMOVED***',
         server_token: '***REMOVED***',
-        redirect_uri: 'https://087af77a.ngrok.io/api/callback' + '?phone=' + encodeURIComponent(digits),
+        redirect_uri: 'https://087af77a.ngrok.io/api/callback' +
+            '?phone=' + encodeURIComponent(digits),
         name: 'Convoy',
         language: 'en_US', // optional, defaults to en_US
         sandbox: true // optional, defaults to false
@@ -69,9 +72,6 @@ function car(captain) {
     this.type = null;
     this.uber = null;
 }
-
-// Functions for data structure items
-
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -147,23 +147,33 @@ router.post('/convoy', function(req, res) {
                         } while (convoys[id] != null);
                         console.log("created convoy " + id);
                         convoys[id] = new convoy(digits);
+                        var group = convoys[id];
+                        group.commander = digits;
+                        group.members.push(digits);
+                        user.state = "convoy_wait";
                         user.convoyId = id;
-                        geocode.geocodeAddress(parsed.start, (errorMessage, results) => {
-                            if (errorMessage)
-                                console.log(errorMessage);
+                        geocode.geocodeAddress(parsed.start, (
+                            errorMessage, results) => {
+                            if (errorMessage) console.log(errorMessage);
                             else {
-                                convoys[user.convoyId].src = results;
-                                geocode.geocodeAddress(parsed.end, (errorMessage, results) => {
-                                    if (errorMessage)
-                                        console.log(errorMessage);
-                                    else {
-                                        convoys[user.convoyId].dest = results;
-                                        reply(res, "Created convoy from " + convoys[user.convoyId].src.address + " to " +
-                                            convoys[user.convoyId].dest.address +
-                                            ". Tell your friends to send us 'join " +
-                                            user.convoyId + "'!");
+                                var group = convoys[user.convoyId];
+                                group.src = results;
+                                geocode.geocodeAddress(parsed.end,
+                                    (errorMessage, results) => {
+                                        if (errorMessage)
+                                            console.log(errorMessage);
+                                        else {
+                                            group.dest = results;
+                                            reply(res, "Created convoy from " +
+                                                group.src.address + " to " +
+                                                group.dest.address +
+                                                ". Tell your friends to send us 'join " +
+                                                user.convoyId +
+                                                "', and send 'done' to start."
+                                            );
+                                        }
                                     }
-                                });
+                                );
                             }
                         });
                     }
@@ -181,13 +191,32 @@ router.post('/convoy', function(req, res) {
                     reply(res, id + " is not a valid convoy. :(");
                     loop = false;
                 }
+                group.members.push(digits);
                 user.convoyId = id;
-                user.state = "wait";
-                reply(res, "You're in! Get ready to go from " + group.src.address +
-                    " to " + group.dest.address);
+                user.state = "user_wait";
+                reply(res, "You've joined " + group.commander +
+                    "'s convoy! Get ready to go from " + group.src.address + " to " +
+                    group.dest.address + ".");
                 loop = false;
                 break;
-            case "wait":
+            case "user_wait":
+                reply(res, "user_wait not yet configured");
+                loop = false;
+                break;
+            case "convoy_wait":
+                var group = convoys[user.convoyId];
+                var prefix = "";
+                if (msg != "done") {
+                    prefix = "Message 'done' to close the convoy.";
+                    loop = false;
+                } else {
+                    user.state = "uber";
+                    prefix = "Okay, starting convoy.";
+                }
+                reply(res, prefix + " There are " + group.members.length +
+                    " people in your convoy: " + group.members);
+                break;
+            case "uber":
                 break;
             default:
                 break;
@@ -276,44 +305,60 @@ var reply = function(res, msg) {
     res.end(twiml.toString());
 }
 
+var send = function(number, msg) {
+    var accountSid = '***REMOVED***';
+    var authToken = '***REMOVED***';
 
-var cheapestCombination = function(numRiders){
+    var twilio = require('twilio');
+    var client = new twilio.RestClient(accountSid, authToken);
 
-  var uberReservations = {
-    xlReserves: 0,
-    xReserves: 0
-  };
+    client.messages.create({
+        body: msg,
+        to: number, // Text this number
+        from: '+15042266869' // From a valid Twilio number
+    }, function(err, message) {
+        console.log(message.sid);
+    });
 
-  if(numRiders > carCapacity("X")){
-    while(numRiders > carCapacity("X")){
-      numRiders -= carCapacity("XL");
-      uberReservations.xlReserves += 1;
-    }
-  } else {
-    while(numRiders >= 0){
-      numRiders -= carCapacity("X");
-      uberReservations.xReserves += 1;
-    }
-  }
-
-  if(numRiders > carCapacity("X")){
-    numRiders -= carCapacity("XL");
-    uberReservations.xlReserves += 1;
-  } else if(numRiders >= 1) {
-    numRiders -= carCapacity("X");
-    uberReservations.xReserves += 1;
-  }
-
-  return uberReservations;
 }
 
-var carCapacity = function(car){
-  if(car === "XL"){
-    return 7;
-  } else if(car === "X"){
-    return 4;
-  }
-  return -1;
+var cheapestCombination = function(numRiders) {
+
+    var uberReservations = {
+        xlReserves: 0,
+        xReserves: 0
+    };
+
+    if (numRiders > carCapacity("X")) {
+        while (numRiders > carCapacity("X")) {
+            numRiders -= carCapacity("XL");
+            uberReservations.xlReserves += 1;
+        }
+    } else {
+        while (numRiders >= 0) {
+            numRiders -= carCapacity("X");
+            uberReservations.xReserves += 1;
+        }
+    }
+
+    if (numRiders > carCapacity("X")) {
+        numRiders -= carCapacity("XL");
+        uberReservations.xlReserves += 1;
+    } else if (numRiders >= 1) {
+        numRiders -= carCapacity("X");
+        uberReservations.xReserves += 1;
+    }
+
+    return uberReservations;
+}
+
+var carCapacity = function(car) {
+    if (car === "XL") {
+        return 7;
+    } else if (car === "X") {
+        return 4;
+    }
+    return -1;
 }
 
 
