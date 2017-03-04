@@ -277,4 +277,46 @@ var reply = function(res, msg) {
     res.end(twiml.toString());
 }
 
+
+var cheapestCombination = function(numRiders){
+
+  var uberReservations = {
+    xlReserves: 0,
+    xReserves: 0
+  };
+
+  if(numRiders > carCapacity("X")){
+    while(numRiders > carCapacity("X")){
+      numRiders -= carCapacity("XL");
+      uberReservations.xlReserves += 1;
+    }
+  } else {
+    while(numRiders >= 0){
+      numRiders -= carCapacity("X");
+      uberReservations.xReserves += 1;
+    }
+  }
+
+  if(numRiders > carCapacity("X")){
+    numRiders -= carCapacity("XL");
+    uberReservations.xlReserves += 1;
+  } else if(numRiders >= 1) {
+    numRiders -= carCapacity("X");
+    uberReservations.xReserves += 1;
+  }
+
+  return uberReservations;
+}
+
+var carCapacity = function(car){
+  if(car === "XL"){
+    return 7;
+  } else if(car === "X"){
+    return 4;
+  }
+  return -1;
+}
+
+
+
 module.exports = router;
