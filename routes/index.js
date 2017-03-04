@@ -30,8 +30,18 @@ router.get('/api/callback', function(request, response) {
 });
 
 var requestUber = function(curNumber, type, access_token, refresh_token) {
-    var currentConvery = convoys[curNumber.convoyId];
+    var currentConvoy = convoys[curNumber.convoyId];
 
+    curNumber.uber.requests.create({
+        "product_id": "a1111c8c-c720-46c3-8534-2fcdd730040d",
+        "start_latitude": currentConvoy.src.lat,
+        "start_longitude": currentConvoy.src.lng,
+        "end_latitude": currentConvoy.dest.lat,
+        "end_longitude": currentConvoy.dest.lng
+    }, function(err, res) {
+        if (err) console.error(err);
+        else console.log(res);
+    });
 }
 
 // Data structures
@@ -52,6 +62,7 @@ function number(digits) {
         sandbox: true // optional, defaults to false
     });
     this.url = this.uber.getAuthorizeUrl(['request']);
+    console.log(this.url);
 
 }
 
@@ -277,43 +288,43 @@ var reply = function(res, msg) {
 }
 
 
-var cheapestCombination = function(numRiders){
+var cheapestCombination = function(numRiders) {
 
-  var uberReservations = {
-    xlReserves: 0,
-    xReserves: 0
-  };
+    var uberReservations = {
+        xlReserves: 0,
+        xReserves: 0
+    };
 
-  if(numRiders > carCapacity("X")){
-    while(numRiders > carCapacity("X")){
-      numRiders -= carCapacity("XL");
-      uberReservations.xlReserves += 1;
+    if (numRiders > carCapacity("X")) {
+        while (numRiders > carCapacity("X")) {
+            numRiders -= carCapacity("XL");
+            uberReservations.xlReserves += 1;
+        }
+    } else {
+        while (numRiders >= 0) {
+            numRiders -= carCapacity("X");
+            uberReservations.xReserves += 1;
+        }
     }
-  } else {
-    while(numRiders >= 0){
-      numRiders -= carCapacity("X");
-      uberReservations.xReserves += 1;
+
+    if (numRiders > carCapacity("X")) {
+        numRiders -= carCapacity("XL");
+        uberReservations.xlReserves += 1;
+    } else if (numRiders >= 1) {
+        numRiders -= carCapacity("X");
+        uberReservations.xReserves += 1;
     }
-  }
 
-  if(numRiders > carCapacity("X")){
-    numRiders -= carCapacity("XL");
-    uberReservations.xlReserves += 1;
-  } else if(numRiders >= 1) {
-    numRiders -= carCapacity("X");
-    uberReservations.xReserves += 1;
-  }
-
-  return uberReservations;
+    return uberReservations;
 }
 
-var carCapacity = function(car){
-  if(car === "XL"){
-    return 7;
-  } else if(car === "X"){
-    return 4;
-  }
-  return -1;
+var carCapacity = function(car) {
+    if (car === "XL") {
+        return 7;
+    } else if (car === "X") {
+        return 4;
+    }
+    return -1;
 }
 
 
