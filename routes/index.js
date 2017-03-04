@@ -118,6 +118,8 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                         console.log("===========SUCCESS CALL=========");
                         car.uber = res;
                         console.log(res);
+                        console.log("===========TOKEN CALL=========");
+                        console.log(access_token)
                     }
                 });
             }
@@ -557,7 +559,6 @@ var selectCaptains = function(convoy, numCars) {
         console.log(randomValue);
 
         captains.push(currentMembers[randomValue]);
-        currentMembers[randomValue] = undefined;
     }
 
     return captains;
