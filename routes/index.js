@@ -11,6 +11,7 @@ router.get('/api/login', function(request, response) {
 });
 
 router.get('/api/callback', function(request, response) {
+    console.log(request);
     var curNumber = numbers[request.query.phone];
     curNumber.uber.authorization({
         authorization_code: request.query.code
@@ -23,34 +24,48 @@ router.get('/api/callback', function(request, response) {
             //response.redirect('/web/index.html');
             console.log(access_token);
             console.log(refresh_token);
-
             var group = convoys[curNumber.convoyId];
             group.unconfirmed--;
             if (group.unconfirmed == 0) {
                 //assemble ubers
                 console.log("CALL ZEEEE UBERZZ");
-                requestUbers(convoys[curNumber.convoyId], access_token, refresh_token);
+                requestUbers(convoys[curNumber.convoyId], access_token,
+                    refresh_token);
             }
             response.send("OK");
         }
     });
 });
 
+router.get('/api/status', function(req, res) {
+    var status = req.meta.status;
+    var uber_id = req.meta.user_id;
+    console.log(status);
+    res.send("OK");
+});
+
 var requestUbers = function(convoy, access_token, refresh_token) {
     for (car of convoy.cars) {
         console.log("LOOPING CARS");
         console.log(car);
-        numbers[car.captain].uber.requests.create({
-            "product_id": car.type,
-            "start_latitude": convoy.src.lat,
-            "start_longitude": convoy.src.lng,
-            "end_latitude": convoy.dest.lat,
-            "end_longitude": convoy.dest.lng
-        }, function(err, res) {
+        numbers[car.captain].uber.users.getProfile(function(err, res) {
             if (err) console.log(err);
             else {
-                car.uber = res;
                 console.log(res);
+                numbers[car.captain].uber.requests.create({
+                    "product_id": car.type,
+                    "start_latitude": convoy.src.lat,
+                    "start_longitude": convoy.src.lng,
+                    "end_latitude": convoy.dest.lat,
+                    "end_longitude": convoy.dest.lng
+                }, function(err, res) {
+                    if (err) console.log(err);
+                    else {
+                        car.uber = res;
+                        console.log(res);
+                    }
+                });
+
             }
         });
     }
@@ -59,7 +74,9 @@ var requestUbers = function(convoy, access_token, refresh_token) {
 var startAuth = function(convoy) {
     for (car of convoy.cars) {
         var number = numbers[car.captain];
-        var message = "Congrats, you are the captain of your car! Please login here to confirm the ride: " + number.url;
+        var message =
+            "Congrats, you are the captain of your car! Please login here to confirm the ride: " +
+            number.url;
         send(number.digits, message);
     }
 
@@ -68,6 +85,7 @@ var startAuth = function(convoy) {
 // Data structures
 var numbers = {};
 var convoys = {};
+var ubers = {};
 
 // Constructors for data structure items
 function number(digits) {
@@ -78,7 +96,7 @@ function number(digits) {
         client_id: '***REMOVED***',
         client_secret: '***REMOVED***',
         server_token: '***REMOVED***',
-        redirect_uri: 'https://087af77a.ngrok.io/api/callback' +
+        redirect_uri: "https://087af77a.ngrok.io/api/callback" +
             '?phone=' + encodeURIComponent(digits),
         name: 'Convoy',
         language: 'en_US', // optional, defaults to en_US
@@ -104,6 +122,10 @@ function car(captain) {
     this.riders = [];
     this.type = null;
     this.uber = null;
+}
+function uber(captain, uberId) {
+    this.captain = captain;
+    this.uberId = uberId;
 }
 
 /* GET home page. */
@@ -154,7 +176,7 @@ router.post('/convoy', function(req, res) {
         console.log("user.state: " + user.state);
         switch (user.state) {
             case "new_user":
-                switch (stringGetWord(msg, 0)) {
+                switch (stringGetWord(msg, 0).toLowerCase()) {
                     case "convoy":
                         user.state = "convoy_init";
                         break;
@@ -260,7 +282,8 @@ router.post('/convoy', function(req, res) {
                         break loop;
                     default:
                         reply(res, "Tell others to msg '" + user.convoyId +
-                            "' to join. Msg 'done' to close the convoy. Msg 'kill' to cancel.");
+                            "' to join. Msg 'done' to close the convoy. Msg 'kill' to cancel."
+                        );
                         break loop;
                 }
                 break;
@@ -345,6 +368,7 @@ var stringGetWord = function(str, i) {
 var reply = function(res, msg) {
     var twilio = require('twilio');
     var twiml = new twilio.TwimlResponse();
+    console.log("reply: " + msg);
     twiml.message(msg);
     res.writeHead(200, {
         'Content-Type': 'text/xml'
@@ -357,6 +381,7 @@ var send = function(number, msg) {
     var authToken = '***REMOVED***';
     var twilio = require('twilio');
     var client = new twilio.RestClient(accountSid, authToken);
+    console.log("send: " + msg);
 
     client.messages.create({
         body: msg,
@@ -472,7 +497,7 @@ var selectCaptains = function(convoy, numCars) {
 }
 
 function getRandomArbitrary(max) {
-    return Math.random() * max;   
+    return Math.random() * max;
 }
 
 
