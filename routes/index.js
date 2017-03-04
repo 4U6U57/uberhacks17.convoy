@@ -58,45 +58,36 @@ var requestUbers = function(convoy, access_token, refresh_token) {
             } else {
                 console.log("===========SUCCESS PROFILES=========");
                 console.log(res);
-                number.uber.requests.create({
-                    "product_id": car.type,
+                var options = {
+                     "product_id": car.type,
                     "start_latitude": convoy.src.lat,
                     "start_longitude": convoy.src.lng,
                     "end_latitude": convoy.dest.lat,
                     "end_longitude": convoy.dest.lng
-                }, function(err, res) {
-                    if (err) {
-                        console.log("===========ERROR=========");
+                };
+                number.uber.requests.getEstimates(options, function (err, res) {
+                  if (err) {
+                        console.log("===========ERROR EST=========");
                         console.log(err);
                     }
                     else {
-                        console.log("===========SUCCESS=========");
+                        console.log("===========SUCCESS EST=========");
+                        car.cost = res.price.high_estimate;
+                    }
+                });
+                number.uber.requests.create(options, function(err, res) {
+                    if (err) {
+                        console.log("===========ERROR CALL=========");
+                        console.log(err);
+                    }
+                    else {
+                        console.log("===========SUCCESS CALL=========");
                         car.uber = res;
                         console.log(res);
                     }
                 });
             }
         });
-        /*number.uber.user.getProfile(function(err, res) {
-            if (err) console.log(err);
-            else {
-                console.log(res);
-                number.uber.requests.create({
-                    "product_id": car.type,
-                    "start_latitude": convoy.src.lat,
-                    "start_longitude": convoy.src.lng,
-                    "end_latitude": convoy.dest.lat,
-                    "end_longitude": convoy.dest.lng
-                }, function(err, res) {
-                    if (err) console.log(err);
-                    else {
-                        car.uber = res;
-                        console.log(res);
-                    }
-                });
-
-            }
-        });*/
     }
 }
 
@@ -151,6 +142,7 @@ function car(captain) {
     this.riders = [];
     this.type = null;
     this.uber = null;
+    this.cost = 0;
 }
 
 function uber(captain, uberId) {
