@@ -58,8 +58,8 @@ function convoy(commander) {
 	this.commander = commander;
 	this.members = [];
 	this.cars = {};
-	this.src = "";
-	this.dest = "";
+	this.src = null;
+	this.dest = null;
 }
 
 function car(captain) {
@@ -110,10 +110,14 @@ router.get('/send', function(req, res, next) {
 router.post('/convoy', function(req, res) {
 	var digits = req.body.From;
 	var msg = req.body.Body;
-	if(! numbers[digits]) numbers[digits] = new number();
+	//var digits = "911";
+	//var msg = "convoy to SF State from Uber HQ";
+	console.log("GET " + digits + " " + msg);
+	if(numbers[digits] == null) numbers[digits] = new number();
 	var user = numbers[digits];
 	var loop = true;
 	while(loop) {
+		console.log("user.state: " + user.state);
 		switch(user.state) {
 			case "new_user":
 				switch(stringGetWord(msg, 0)) {
@@ -125,23 +129,52 @@ router.post('/convoy', function(req, res) {
 						break;
 					default:
 						reply(res, "Command not recognized");
+						loop = false;
+						break;
 				}
 				break;
 			case "convoy_init":
-				if(! user.convoyId) {
-					do {
-						user.convoyId = randomWords()
-					} while(convoy[user.convoyId]);
-					convoy[user.convoyId] = new convoy(digits);
-				};
-				// TODO: Actually recognize src and dest
+				var parsed = parseConvoy(msg.split(" "));
+				if(parsed.src != null && parsed.dest != null) {
+					if(user.convoyId == null) {
+						console.log("creating new convoy");
+						var id;
+						do {
+							id = randomWords();
+							console.log("trying " + id);
+						} while(convoys[id] != null);
+						console.log("created convoy " + id);
+						convoys[id] = new convoy(digits);
+						user.convoyId = id;
+					}
+					console.log("filling in convoy data");
+					var group = convoys[user.convoyId];
+					group.src = parsed.src;
+					group.dest = parsed.dest;
+					console.log(convoy);
+					reply(res, "Created convoy from " + group.src + " to " +
+							group.dest +
+							". Tell your friends to send us 'join " +
+							user.convoyId  + "'!");
+					loop = false;
+				} else {
+					reply(res, "Invalid convoy syntax. Use 'convoy from SOURCE to DEST'");
+					loop = false;
+				}
 				break;
 			case "convoy_join":
 				var id = stringGetWord(msg, 1);
-				if(! convoy[id]) reply(res, id + " is not a valid convoy. :(");
+				console.log("requested to join " + id);
+				var group = convoys[id];
+				if(group == null) {
+					reply(res, id + " is not a valid convoy. :(");
+					loop = false;
+				}
 				user.convoyId = id;
 				user.state = "wait";
-				loop = false;
+				reply(res, "You're in! Get ready to go from " + group.src +
+						" to " + group.dest);
+					loop = false;
 				break;
 			case "wait":
 				break;
@@ -208,8 +241,8 @@ var parseConvoy = function(tokenizeResponse) {
 	}
 
 	var convoy = {
-		start: starting,
-		end: destination
+		src: starting,
+		dest: destination
 	}
 
 	if (trigger === -1) {
