@@ -446,10 +446,12 @@ var prepTrip = function(convoy) {
     var numCars = combination.xlReserves + combination.xReserves;
     var numXL = combination.xlReserves;
     var numX = combination.xReserves;
+    var riderIndex = 0;
+    var carIndex = 0;
     var xlCode = "821415d8-3bd5-4e27-9604-194e4359a449";
     var xCode = "a1111c8c-c720-46c3-8534-2fcdd730040d";
-
     var captainList = selectCaptains(convoy, numCars);
+
 
     var captainIterator = 0;
 
@@ -462,23 +464,37 @@ var prepTrip = function(convoy) {
 
     for (var i = 0; i < combination.xReserves; i++) {
         var curcar = new car(captainList[captainIterator]);
-
         captainIterator++;
         curcar.type = xCode;
         convoy.cars.push(curcar);
+
     }
 
-    for (var i = 0; i < numCars; i++) {
-        if (convoy.cars[i] === xlCode) {
-            for (var i = 0; i < carCapacity("XL"); i++) {
-                curcar.riders[i] = convoy.members[i];
-            }
-        } else if (convoy.cars[i] === xCode) {
-            for (var i = 0; i < carCapacity("X"); i++) {
-                curcar.riders[i] = convoy.members[i];
-            }
+    for(riderIndex = 0; riderIndex < riderCount && (numCars != 0); riderIndex++){
+      curcar = convoy.cars[carIndex];
+
+      if (curcar.type === xlCode) {
+        for (var j = 0; j < carCapacity("XL"); j++) {
+          if(convoy.members[riderIndex] != undefined){
+            curcar.riders.push(convoy.members[riderIndex]);
+          }
+            riderIndex++;
         }
+        carIndex++;
+      }else if (curcar.type === xCode) {
+        for (var j = 0; j < carCapacity("X"); j++) {
+          if(convoy.members[riderIndex] != undefined){
+            curcar.riders.push(convoy.members[riderIndex]);
+          }
+          riderIndex++;
+        }
+        carIndex++;
+      }else {
+        console.log("SKIPPING IF STATEMENT");
+      }
     }
+
+      console.log(curcar);
 
     convoy.unconfirmed = captainList.length;
     startAuth(convoy);
@@ -495,8 +511,7 @@ var selectCaptains = function(convoy, numCars) {
         console.log(randomValue);
 
         captains.push(currentMembers[randomValue]);
-        currentMembers[randomValue] = currentMembers[currentMembers.length - 1];
-        currentMembers.pop();
+        currentMembers[randomValue] = undefined;
     }
 
     return captains;
