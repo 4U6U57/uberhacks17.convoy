@@ -60,6 +60,7 @@ function number(digits) {
 
 function convoy(commander) {
     this.commander = commander;
+    this.open = true;
     this.members = [];
     this.cars = {};
     this.src = {};
@@ -117,8 +118,7 @@ router.post('/convoy', function(req, res) {
     console.log("GET " + digits + " " + msg);
     if (numbers[digits] == null) numbers[digits] = new number(digits);
     var user = numbers[digits];
-    var loop = true;
-    while (loop) {
+    loop: while (true) {
         console.log("user.state: " + user.state);
         switch (user.state) {
             case "new_user":
@@ -131,8 +131,7 @@ router.post('/convoy', function(req, res) {
                         break;
                     default:
                         reply(res, "Command not recognized");
-                        loop = false;
-                        break;
+                        break loop;
                 }
                 break;
             case "convoy_init":
@@ -154,18 +153,25 @@ router.post('/convoy', function(req, res) {
                         user.convoyId = id;
                         geocode.geocodeAddress(parsed.start, (
                             errorMessage, results) => {
-                            if (errorMessage) console.log(errorMessage);
-                            else {
+                            if (errorMessage) {
+                                console.log(errorMessage);
+                                convoys[user.convoyId] = null;
+                                numbers[digits] = null;
+                            } else {
                                 var group = convoys[user.convoyId];
                                 group.src = results;
                                 geocode.geocodeAddress(parsed.end,
                                     (errorMessage, results) => {
-                                        if (errorMessage)
+                                        if (errorMessage) {
                                             console.log(errorMessage);
-                                        else {
+                                            convoys[user.convoyId] = null;
+                                            numbers[digits] = null;
+                                        } else {
                                             group.dest = results;
-                                            reply(res, "Created convoy from " +
-                                                group.src.address + " to " +
+                                            reply(res,
+                                                "Created convoy from " +
+                                                group.src.address +
+                                                " to " +
                                                 group.dest.address +
                                                 ". Tell your friends to send us 'join " +
                                                 user.convoyId +
@@ -177,49 +183,60 @@ router.post('/convoy', function(req, res) {
                             }
                         });
                     }
-                    loop = false;
                 } else {
-                    reply(res, "Invalid convoy syntax. Use 'convoy from SOURCE to DEST'");
-                    loop = false;
+                    reply(res,
+                        "Invalid convoy syntax. Use 'convoy from SOURCE to DEST'");
                 }
-                break;
+                break loop;
             case "convoy_join":
                 var id = stringGetWord(msg, 1);
                 console.log("requested to join " + id);
                 var group = convoys[id];
                 if (group == null) {
-                    reply(res, id + " is not a valid convoy. :(");
-                    loop = false;
+                    reply(res, "'" + id + "' is not a valid convoy. :(");
+                    user.state = "new_user";
+                } else if (!group.open) {
+                    reply(res, "'" + id + "' is no longer open. ;_;");
+                    user.state = "new_user";
+                } else {
+                    group.members.push(digits);
+                    user.convoyId = id;
+                    user.state = "user_wait";
+                    send(group.commander, digits + " has joined your convoy.");
+                    reply(res, "You've joined " + group.commander +
+                        "'s convoy! Get ready to go from " + group.src.address +
+                        " to " +
+                        group.dest.address + ".");
                 }
-                group.members.push(digits);
-                user.convoyId = id;
-                user.state = "user_wait";
-                reply(res, "You've joined " + group.commander +
-                    "'s convoy! Get ready to go from " + group.src.address + " to " +
-                    group.dest.address + ".");
-                loop = false;
-                break;
+                break loop;
             case "user_wait":
                 reply(res, "user_wait not yet configured");
-                loop = false;
-                break;
+                break loop;
             case "convoy_wait":
                 var group = convoys[user.convoyId];
-                var prefix = "";
-                if (msg != "done") {
-                    prefix = "Message 'done' to close the convoy.";
-                    loop = false;
-                } else {
-                    user.state = "uber";
-                    prefix = "Okay, starting convoy.";
+                switch (msg.toLowerCase()) {
+                    case 'done':
+                        group.open = false;
+                        user.state = "uber";
+                        reply(res, "Closing convoy. There are " + group.members.length +
+                            " members: " + group.members);
+                        break;
+                    case 'kill':
+                        group.open = false;
+                        numbers[digits] = new number();
+                        break;
+                    default:
+                        reply(res, "Tell others to msg '" + user.convoyId +
+                            "' to join. Msg 'done' to close the convoy. Msg 'kill' to cancel.");
+                        break;
                 }
-                reply(res, prefix + " There are " + group.members.length +
-                    " people in your convoy: " + group.members);
-                break;
+                break loop;
             case "uber":
-                break;
+                reply(res, "uber not yet configured");
+                break loop;
             default:
-                break;
+                reply(res, "Congrats! You broke Convoy. Have a cookie.");
+                break loop;
         }
     }
 });
