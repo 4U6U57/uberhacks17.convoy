@@ -6,12 +6,11 @@ var geocode = require('./geocodeAddress.js');
 var randomWords = require('random-words');
 
 router.get('/api/login', function(request, response) {
-    var url = uber.getAuthorizeUrl(['request']);
+    var url = uber.getAuthorizeUrl(['profile', 'request']);
     response.redirect(url);
 });
 
 router.get('/api/callback', function(request, response) {
-    console.log(request);
     var curNumber = numbers[request.query.phone];
     curNumber.uber.authorization({
         authorization_code: request.query.code
@@ -19,18 +18,13 @@ router.get('/api/callback', function(request, response) {
         if (err) {
             console.error(err);
         } else {
-            // store the user id and associated access token
-            // redirect the user back to your actual app
-            //response.redirect('/web/index.html');
             console.log(access_token);
             console.log(refresh_token);
             var group = convoys[curNumber.convoyId];
             group.unconfirmed--;
             if (group.unconfirmed == 0) {
-                //assemble ubers
                 console.log("CALL ZEEEE UBERZZ");
-                requestUbers(convoys[curNumber.convoyId], access_token,
-                    refresh_token);
+                requestUbers(convoys[curNumber.convoyId], access_token, refresh_token);
             }
             response.send("OK");
         }
@@ -48,11 +42,22 @@ var requestUbers = function(convoy, access_token, refresh_token) {
     for (car of convoy.cars) {
         console.log("LOOPING CARS");
         console.log(car);
-        numbers[car.captain].uber.users.getProfile(function(err, res) {
+        console.log(numbers[car.captain]);
+        var number = numbers[car.captain];
+        number.uber.user.getProfile(function(err, res) {
+            if (err) {
+                console.log("===========ERROR=========")
+                console.log(err);
+            } else {
+                console.log("===========SUCCESS=========")
+                console.log(res);
+            }
+        });
+        number.uber.user.getProfile(function(err, res) {
             if (err) console.log(err);
             else {
                 console.log(res);
-                numbers[car.captain].uber.requests.create({
+                number.uber.requests.create({
                     "product_id": car.type,
                     "start_latitude": convoy.src.lat,
                     "start_longitude": convoy.src.lng,
@@ -96,13 +101,13 @@ function number(digits) {
         client_id: '***REMOVED***',
         client_secret: '***REMOVED***',
         server_token: '***REMOVED***',
-        redirect_uri: "https://087af77a.ngrok.io/api/callback" +
+        redirect_uri: "https://b4c5b20e.ngrok.io/api/callback" +
             '?phone=' + encodeURIComponent(digits),
         name: 'Convoy',
         language: 'en_US', // optional, defaults to en_US
         sandbox: true // optional, defaults to false
     });
-    this.url = this.uber.getAuthorizeUrl(['request']);
+    this.url = this.uber.getAuthorizeUrl(['profile', 'request']);
     console.log(this.url);
 
 }
@@ -123,6 +128,7 @@ function car(captain) {
     this.type = null;
     this.uber = null;
 }
+
 function uber(captain, uberId) {
     this.captain = captain;
     this.uberId = uberId;
