@@ -309,13 +309,72 @@ var cheapestCombination = function(numRiders){
 
 var carCapacity = function(car){
   if(car === "XL"){
-    return 7;
+    return 6;
   } else if(car === "X"){
     return 4;
   }
   return -1;
 }
 
+var prepTrip = function(convoy) {
+  var riderCount = convoy.members.length;
+
+  var combination = cheapestCombination(count);
+  var numCars = combination.xlReserves + combination.xReserves;
+  var numXL = combination.xlReserves;
+  var numX = combination.xReserves;
+  var xlCode = "821415d8-3bd5-4e27-9604-194e4359a449";
+  var xCode = "a1111c8c-c720-46c3-8534-2fcdd730040d";
+
+  var captainList = selectCaptains(convoy, numCars);
+  var captainIterator = 0;
+
+  for(var i = 0; i < combination.xlReserves; i++){
+    var curcar = new car(captainList[captainIterator]);
+    captainIterator++;
+    curcar.type = xlCode;
+    convoy.cars.push(curcar);
+  }
+
+  for(var i = 0; i < combination.xReserves; i++){
+    var curcar = new car(captainList[captainIterator]);
+    captainIterator++;
+    curcar.type = xCode;
+    convoy.cars.push(curcar);
+  }
+
+
+  for(var i = 0; i < numCars; i++){
+    if(convoy.cars[i] === xlCode){
+      for(var i = 0; i < carCapacity("XL"); i++){
+        curcar.riders[i] = convoy.members[i];
+      }
+    }else if(convoy.cars[i] === xCode){
+      for(var i = 0; i < carCapacity("X"); i++){
+        curcar.riders[i] = convoy.members[i];
+      }
+    }
+  }
+}
+
+var selectCaptains = function(convoy, numCars){
+  var currentMembers = convoy.members;
+  var randomValue = -1;
+  var captains = [];
+
+  for(var i = 0; i < numCars; i++){
+    randomValue = getRandomArbitrary(0,currentMembers.length);
+    captains.push(currentMembers[randomValue]);
+    currentMembers[randomValue] = currentMembers[currentMembers.length-1];
+    currentMembers.length -= 1;
+  }
+
+  return captains;
+}
+
+function getRandomArbitrary(min, max) {
+  return Math.random() * (max - min) + min;
+}
 
 
 module.exports = router;
