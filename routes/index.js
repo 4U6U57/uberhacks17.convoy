@@ -46,18 +46,20 @@ router.post('/api/status', function(req, res) {
         for (psy of group.cars)
             if (psy.captain === captain)
                 car = psy;
-        var count = 1;
+        var count = 0;
         for (rider of car.riders) count++;
         for (rider of car.riders)
             switch (req.body.meta.status) {
                 case "accepted":
-                    send(rider, "You are riding with " + number[captain].name);
+                    send(rider, "You are riding with " + numbers[captain].name);
                     break;
                 case "arriving":
                     send(rider, "Your Uber is here.");
                     break;
                 case "in_progress":
-                    spend(rider, "You owe " + number[captain].name + " $" + (car.cost / count) + ".");
+                    if (rider == captain) send(rider, "You paid $" + car.cost + " up front.");
+                    else send(rider, "You owe " + numbers[captain].name + " $" + (car.cost /
+                        count) + ".");
                     break;
                 case "completed":
                     numbers[rider] = null;
