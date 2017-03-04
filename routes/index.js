@@ -124,19 +124,21 @@ router.post('/convoy', function(req, res) {
 						user.state = "convoy_join";
 						break;
 					default:
-						reply("Command not recognized");
+						reply(res, "Command not recognized");
 				}
 				break;
 			case "convoy_init":
 				if(! user.convoyId) {
-					user.convoyId = randomWords();
+					do {
+						user.convoyId = randomWords()
+					} while(convoy[user.convoyId]);
 					convoy[user.convoyId] = new convoy(digits);
 				};
 				// TODO: Actually recognize src and dest
 				break;
 			case "convoy_join":
 				var id = stringGetWord(msg, 1);
-				if(! convoy[id]) reply(id + " is not a valid convoy. :(");
+				if(! convoy[id]) reply(res, id + " is not a valid convoy. :(");
 				user.convoyId = id;
 				user.state = "wait";
 				loop = false;
