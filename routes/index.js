@@ -11,11 +11,8 @@ router.get('/api/login', function(request, response) {
 });
 
 router.get('/api/callback', function(request, response) {
-    console.log("PHONE PHONE");
-    console.log(request.query.phone);
-    var client = numbers[request.query.phone];
-    console.log(client);
-    client.uber.authorization({
+    var curNumber = numbers[request.query.phone];
+    curNumber.uber.authorization({
         authorization_code: request.query.code
     }, function(err, access_token, refresh_token) {
         if (err) {
@@ -26,14 +23,15 @@ router.get('/api/callback', function(request, response) {
             //response.redirect('/web/index.html');
             console.log(access_token);
             console.log(refresh_token);
-            requestUber(access_token, refresh_token);
+            requestUber(curNumber, access_token, refresh_token);
             response.send("OK");
         }
     });
 });
 
-var requestUber = function(access_token, refresh_token) {
-    console.log("Reqeust");
+var requestUber = function(curNumber, type, access_token, refresh_token) {
+    var currentConvery = convoys[curNumber.convoyId];
+
 }
 
 // Data structures
@@ -68,6 +66,7 @@ function convoy(commander) {
 function car(captain) {
     this.captain = captain;
     this.riders = [];
+    this.type = null;
     this.uber = null;
 }
 
@@ -116,7 +115,7 @@ router.post('/convoy', function(req, res) {
     //var digits = "911";
     //var msg = "convoy to SF State from Uber HQ";
     console.log("GET " + digits + " " + msg);
-    if (numbers[digits] == null) numbers[digits] = new number();
+    if (numbers[digits] == null) numbers[digits] = new number(digits);
     var user = numbers[digits];
     var loop = true;
     while (loop) {
