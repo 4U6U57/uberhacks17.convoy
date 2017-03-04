@@ -74,9 +74,76 @@ router.post('/convoy', function(req, res) {
 
 // Put abstracted functions here
 var getConvoySrc = function(convoy) {};
+
 var getConvoyDest = function(convoy) {};
 
+
 // Put helper functions here
-var getOptCode = function(msg) {};
+var getOptCode = function(msg) {
+	var optCode;
+
+	switch(msg){
+		case "convoy" || "to":
+			optCode 1;
+			break;
+		case "from":
+			optCode: 2;
+			break;
+		case "yes":
+			optCode: 3;
+			break;
+		case "no":
+			optCode: 4;
+			break;
+		case "done":
+			optCode: 5;
+			break;
+		default: {
+			optCode: -1;
+			break;
+		}
+	}
+
+	return optCode;
+};
+
+
+var parseConvoy = function(tokenizeResponse) {
+	var destination = "";
+	var starting = "";
+	var trigger = -1;
+
+	for(var i = 0; i < tokenizeResponse.length; i++){
+
+	  if(tokenizeResponse[i] === "from"){
+	    i++;
+	    trigger = 1;
+	  } else if(tokenizeResponse[i] === "to"){
+	    i++;
+	    trigger = 0;
+	  }
+	  if(trigger === 0){
+	    destination += tokenizeResponse[i] + " ";
+	  } else if(trigger === 1){
+	    starting += tokenizeResponse[i] + " ";;
+	  }
+	}
+
+	var convoy = {
+		start: starting,
+		end: destination
+	}
+
+	if(trigger === -1){
+		console.log("Could not find 'from' or 'convoy to'");
+	} else{
+		return convoy;
+	}
+
+};
+
+
+
+// Get first word helper
 
 module.exports = router;
