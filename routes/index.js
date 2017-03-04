@@ -29,26 +29,29 @@ router.get('/api/callback', function(request, response) {
             if (group.unconfirmed == 0) {
                 //assemble ubers
                 console.log("CALL ZEEEE UBERZZ");
-                //requestUber(curNumber, access_token, refresh_token);
+                requestUber(convoys[curNumber.convoyId], access_token, refresh_token);
             }
             response.send("OK");
         }
     });
 });
 
-var requestUber = function(curNumber, type, access_token, refresh_token) {
-    var currentConvoy = convoys[curNumber.convoyId];
-
-    curNumber.uber.requests.create({
-        "product_id": "a1111c8c-c720-46c3-8534-2fcdd730040d",
-        "start_latitude": currentConvoy.src.lat,
-        "start_longitude": currentConvoy.src.lng,
-        "end_latitude": currentConvoy.dest.lat,
-        "end_longitude": currentConvoy.dest.lng
-    }, function(err, res) {
-        if (err) console.error(err);
-        else console.log(res);
-    });
+var requestUbers = function(convoy, type, access_token, refresh_token) {
+    for (car of convoy.cars) {
+        numbers[car.captain].uber.requests.create({
+            "product_id": car.type,
+            "start_latitude": convoy.src.lat,
+            "start_longitude": convoy.src.lng,
+            "end_latitude": convoy.dest.lat,
+            "end_longitude": convoy.dest.lng
+        }, function(err, res) {
+            if (err) console.error(err);
+            else {
+                car.uber = res;
+                console.log(res);
+            }
+        });
+    }
 }
 
 var startAuth = function(convoy) {
@@ -454,7 +457,7 @@ var selectCaptains = function(convoy, numCars) {
     var captains = [];
 
     for (var i = 0; i < numCars; i++) {
-        randomValue = getRandomArbitrary(0, currentMembers.length-1);
+        randomValue = getRandomArbitrary(0, currentMembers.length - 1);
 
         captains.push(currentMembers[randomValue]);
         currentMembers[randomValue] = currentMembers[currentMembers.length - 1];
