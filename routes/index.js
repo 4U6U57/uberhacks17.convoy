@@ -24,7 +24,8 @@ router.get('/api/callback', function(request, response) {
             group.unconfirmed--;
             if (group.unconfirmed == 0) {
                 console.log("CALL ZEEEE UBERZZ");
-                requestUbers(convoys[curNumber.convoyId], access_token, refresh_token);
+                requestUbers(convoys[curNumber.convoyId], access_token,
+                    refresh_token);
             }
             response.send("OK");
         }
@@ -36,17 +37,31 @@ router.post('/api/status', function(req, res) {
     var status = req.body.meta.status;
     var uuid = req.body.meta.user_id;
     var captain = null;
-    for(number in numbers)
-        if(numbers[number].uuid === uuid)
+    for (number in numbers)
+        if (numbers[number].uuid === uuid)
             captain = number;
-    if(captain !== null) {
+    if (captain !== null) {
         var group = convoys[numbers[captain].convoyId];
         var car = null;
-        for(psy of group.cars)
-            if(psy.captain === captain)
+        for (psy of group.cars)
+            if (psy.captain === captain)
                 car = psy;
-        for(rider of car.riders)
-            if (req.body.meta.status == "accepted") send(rider, "You are riding with " + number[captain].name);
+        for (rider of car.riders)
+            switch (req.body.meta.status) {
+                case "accepted":
+                    send(rider, "You are riding with " + number[captain].name);
+                    break;
+                case "arriving":
+                    send(rider, "Your Uber is here.");
+                    break;
+                case "in_progress":
+                    spend(rider, "You owe " + number[captain].name + " $" + car.cost + ".");
+                    break;
+                case "completed":
+                    numbers[rider] = null;
+                    break;
+            }
+        if (req.body.meta.status == "completed") numbers[captain] = null;
     }
     res.send("OK");
 });
@@ -82,12 +97,11 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                     "end_latitude": convoy.dest.lat,
                     "end_longitude": convoy.dest.lng
                 };
-                number.uber.requests.getEstimates(options, function (err, res) {
-                  if (err) {
+                number.uber.requests.getEstimates(options, function(err, res) {
+                    if (err) {
                         console.log("===========ERROR EST=========");
                         console.log(err);
-                    }
-                    else {
+                    } else {
                         console.log("===========SUCCESS EST=========");
                         car.cost = res.price.high_estimate;
                         console.log(car.cost);
@@ -98,8 +112,7 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                     if (err) {
                         console.log("===========ERROR CALL=========");
                         console.log(err);
-                    }
-                    else {
+                    } else {
                         console.log("===========SUCCESS CALL=========");
                         car.uber = res;
                         console.log(res);
@@ -501,31 +514,31 @@ var prepTrip = function(convoy) {
 
     }
 
-    for(riderIndex = 0; riderIndex < riderCount && (numCars != 0); riderIndex++){
-      curcar = convoy.cars[carIndex];
+    for (riderIndex = 0; riderIndex < riderCount && (numCars != 0); riderIndex++) {
+        curcar = convoy.cars[carIndex];
 
-      if (curcar.type === xlCode) {
-        for (var j = 0; j < carCapacity("XL"); j++) {
-          if(convoy.members[riderIndex] != undefined){
-            curcar.riders.push(convoy.members[riderIndex]);
-          }
-            riderIndex++;
+        if (curcar.type === xlCode) {
+            for (var j = 0; j < carCapacity("XL"); j++) {
+                if (convoy.members[riderIndex] != undefined) {
+                    curcar.riders.push(convoy.members[riderIndex]);
+                }
+                riderIndex++;
+            }
+            carIndex++;
+        } else if (curcar.type === xCode) {
+            for (var j = 0; j < carCapacity("X"); j++) {
+                if (convoy.members[riderIndex] != undefined) {
+                    curcar.riders.push(convoy.members[riderIndex]);
+                }
+                riderIndex++;
+            }
+            carIndex++;
+        } else {
+            console.log("SKIPPING IF STATEMENT");
         }
-        carIndex++;
-      }else if (curcar.type === xCode) {
-        for (var j = 0; j < carCapacity("X"); j++) {
-          if(convoy.members[riderIndex] != undefined){
-            curcar.riders.push(convoy.members[riderIndex]);
-          }
-          riderIndex++;
-        }
-        carIndex++;
-      }else {
-        console.log("SKIPPING IF STATEMENT");
-      }
     }
 
-      console.log(curcar);
+    console.log(curcar);
 
     convoy.unconfirmed = captainList.length;
     startAuth(convoy);
