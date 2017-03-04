@@ -33,9 +33,21 @@ router.get('/api/callback', function(request, response) {
 
 router.post('/api/status', function(req, res) {
     console.log(req.body);
-    //var status = req.meta.status;
-    //var uber_id = req.meta.user_id;
-    //console.log(status);
+    var status = req.body.meta.status;
+    var uuid = req.body.meta.user_id;
+    var captain = null;
+    for(number in numbers)
+        if(numbers[number].uuid === uuid)
+            captain = number;
+    if(captain !== null) {
+        var group = convoys[numbers[captain].convoyId];
+        var car = null;
+        for(psy of group.cars)
+            if(psy.captain === captain)
+                car = psy;
+        for(rider of car.riders)
+            if (req.body.meta.status == "accepted") send(rider, "You are riding with " + number[captain].name);
+    }
     res.send("OK");
 });
 
@@ -45,21 +57,26 @@ var requestUbers = function(convoy, access_token, refresh_token) {
         console.log(car);
         console.log(numbers[car.captain]);
         var number = numbers[car.captain];
-        /*number.uber.requests.getCurrent(function(err, res) {
+        number.uber.requests.getCurrent(function(err, res) {
             if (err) {
-                console.log("===========ERROR PROFILES=========");
+                console.log("===========NO CURRENT=========");
                 console.log(err);
-            } else console.log(res);
-        });*/
+            } else {
+                console.log("===========CURRENT=========");
+                console.log(res);
+            }
+        });
         number.uber.user.getProfile(function(err, res) {
             if (err) {
                 console.log("===========ERROR PROFILES=========");
                 console.log(err);
             } else {
                 console.log("===========SUCCESS PROFILES=========");
-                console.log(res);
+                console.log(res.uuid);
+                number.name = res.first_name + " " + res.last_name;
+                number.uuid = res.uuid;
                 var options = {
-                     "product_id": car.type,
+                    "product_id": car.type,
                     "start_latitude": convoy.src.lat,
                     "start_longitude": convoy.src.lng,
                     "end_latitude": convoy.dest.lat,
@@ -73,6 +90,8 @@ var requestUbers = function(convoy, access_token, refresh_token) {
                     else {
                         console.log("===========SUCCESS EST=========");
                         car.cost = res.price.high_estimate;
+                        console.log(car.cost);
+
                     }
                 });
                 number.uber.requests.create(options, function(err, res) {
@@ -105,7 +124,6 @@ var startAuth = function(convoy) {
 // Data structures
 var numbers = {};
 var convoys = {};
-var ubers = {};
 
 // Constructors for data structure items
 function number(digits) {
@@ -122,6 +140,8 @@ function number(digits) {
         language: 'en_US', // optional, defaults to en_US
         sandbox: true // optional, defaults to false
     });
+    this.uuid = null;
+    this.name = "";
     this.url = this.uber.getAuthorizeUrl(['profile', 'request']);
     console.log(this.url);
 
@@ -143,11 +163,6 @@ function car(captain) {
     this.type = null;
     this.uber = null;
     this.cost = 0;
-}
-
-function uber(captain, uberId) {
-    this.captain = captain;
-    this.uberId = uberId;
 }
 
 /* GET home page. */
