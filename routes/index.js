@@ -88,7 +88,7 @@ function convoy(commander) {
     this.commander = commander;
     this.open = true;
     this.members = [];
-    this.cars = {};
+    this.cars = [];
     this.src = {};
     this.dest = {};
     this.unconfirmed = 0;
@@ -131,7 +131,7 @@ router.get('/send', function(req, res, next) {
     client.messages.create({
         body: 'Hello from Node',
         to: '+***REMOVED***', // Text this number
-        from: '+15042266869 ' // From a valid Twilio number
+        from: '+***REMOVED***' // From a valid Twilio number
     }, function(err, message) {
         console.log(message.sid);
     });
@@ -248,7 +248,7 @@ router.post('/convoy', function(req, res) {
                         send(digits, "Starting convoy. There are " + group.members.length +
                             " members: " + group.members);
                         prepTrip(group);
-                        break;
+                        break loop;
                     case 'kill':
                         group.open = false;
                         numbers[digits] = new number();
@@ -414,9 +414,12 @@ var prepTrip = function(convoy) {
     var xCode = "a1111c8c-c720-46c3-8534-2fcdd730040d";
 
     var captainList = selectCaptains(convoy, numCars);
+    console.log("EXITED SELECT CAPTAINS");
+
     var captainIterator = 0;
 
     for (var i = 0; i < combination.xlReserves; i++) {
+    console.log("ENTERED XL RESERVES");
         var curcar = new car(captainList[captainIterator]);
         captainIterator++;
         curcar.type = xlCode;
@@ -424,11 +427,17 @@ var prepTrip = function(convoy) {
     }
 
     for (var i = 0; i < combination.xReserves; i++) {
+      console.log("ENTERED X RESERVES");
         var curcar = new car(captainList[captainIterator]);
+
         captainIterator++;
         curcar.type = xCode;
         convoy.cars.push(curcar);
+        console.log(curcar);
+        console.log(convoy);
     }
+
+    console.log("LEFT RESERVE FOR LOOPS");
 
 
     for (var i = 0; i < numCars; i++) {
@@ -449,19 +458,24 @@ var prepTrip = function(convoy) {
 
 var selectCaptains = function(convoy, numCars) {
     var currentMembers = convoy.members;
+    console.log(currentMembers);
     var randomValue = -1;
     var captains = [];
     console.log("sleeeeeepy");
 
     for (var i = 0; i < numCars; i++) {
-        randomValue = getRandomArbitrary(0, currentMembers.length);
+        randomValue = getRandomArbitrary(0, currentMembers.length-1);
+        console.log("RANDOM VAL: " + randomValue);
+        console.log("ABOVE PUSH");
         captains.push(currentMembers[randomValue]);
+        console.log(captains[i]);
         currentMembers[randomValue] = currentMembers[currentMembers.length - 1];
-        currentMembers.length -= 1;
+        currentMembers.pop();
     }
 
     console.log("awake");
     console.log(captains);
+
 
     return captains;
 }
