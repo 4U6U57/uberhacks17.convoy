@@ -113,14 +113,14 @@ router.get('/send', function(req, res, next) {
 router.post('/convoy', function(req, res) {
     var digits = req.body.From;
     var msg = req.body.Body;
-    if (numbers[digits] == null) {
-        numbers[digits] = new number(digits);
-    }
-    console.log(digits);
-    console.log(numbers[digits].url);
+    //var digits = "911";
+    //var msg = "convoy to SF State from Uber HQ";
+    console.log("GET " + digits + " " + msg);
+    if (numbers[digits] == null) numbers[digits] = new number();
     var user = numbers[digits];
     var loop = true;
     while (loop) {
+        console.log("user.state: " + user.state);
         switch (user.state) {
             case "new_user":
                 switch (stringGetWord(msg, 0)) {
@@ -131,44 +131,66 @@ router.post('/convoy', function(req, res) {
                         user.state = "convoy_join";
                         break;
                     default:
-                        reply("Command not recognized");
+                        reply(res, "Command not recognized");
+                        loop = false;
+                        break;
                 }
                 break;
             case "convoy_init":
-                if (!user.convoyId) {
-                    user.convoyId = randomWords();
-                    convoy[user.convoyId] = new convoy(digits);
-                };
-                var parsedWaypoints = parseConvoy(msg.toLowerCase().split(' '));
-                geocode.geocodeAddress(parsedWaypoints.start, (errorMessage, results) => {
-                    if (errorMessage)
-                        console.log(errorMessage);
-                    else {
-                        convoy[user.convoyId].src = results;
-                        console.log(convoy[user.convoyId].src);
-                        geocode.geocodeAddress(parsedWaypoints.end, (errorMessage, results) => {
+                var parsed = parseConvoy(msg.toLowerCase().split(" "));
+                if (parsed.start != null && parsed.end != null) {
+                    if (user.convoyId == null) {
+                        console.log("creating new convoy");
+                        var id;
+                        do {
+                            id = randomWords();
+                            console.log("trying " + id);
+                        } while (convoys[id] != null);
+                        console.log("created convoy " + id);
+                        convoys[id] = new convoy(digits);
+                        user.convoyId = id;
+                        geocode.geocodeAddress(parsed.start, (errorMessage, results) => {
                             if (errorMessage)
                                 console.log(errorMessage);
                             else {
-                                convoy[user.convoyId].dest = results;
-                                console.log(convoy[user.convoyId].dest);
-                                //requestUber()
+                                convoys[user.convoyId].src = results;
+                                geocode.geocodeAddress(parsed.end, (errorMessage, results) => {
+                                    if (errorMessage)
+                                        console.log(errorMessage);
+                                    else {
+                                        convoys[user.convoyId].dest = results;
+                                        reply(res, "Created convoy from " + convoys[user.convoyId].src.address + " to " +
+                                            convoys[user.convoyId].dest.address +
+                                            ". Tell your friends to send us 'join " +
+                                            user.convoyId + "'!");
+                                    }
+                                });
                             }
                         });
                     }
-                });
+                    loop = false;
+                } else {
+                    reply(res, "Invalid convoy syntax. Use 'convoy from SOURCE to DEST'");
+                    loop = false;
+                }
                 break;
             case "convoy_join":
                 var id = stringGetWord(msg, 1);
-                if (!convoy[id]) reply(id + " is not a valid convoy. :(");
+                console.log("requested to join " + id);
+                var group = convoys[id];
+                if (group == null) {
+                    reply(res, id + " is not a valid convoy. :(");
+                    loop = false;
+                }
                 user.convoyId = id;
                 user.state = "wait";
+                reply(res, "You're in! Get ready to go from " + group.src.address +
+                    " to " + group.dest.address);
                 loop = false;
                 break;
             case "wait":
                 break;
             default:
-                loop = false;
                 break;
         }
     }
