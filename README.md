@@ -1,4 +1,4 @@
-# convoy :blue_car: :car: :car: :car:
+# Convoy :blue_car: :car: :car: :car:
 
 [![Devpost](https://img.shields.io/badge/devpost-UBER%20Hacks-lightgrey.svg)](https://devpost.com/software/convoy-q5l9k4)
 ![](https://img.shields.io/badge/hosted-Linode-green.svg)
@@ -6,6 +6,8 @@
 ![](https://img.shields.io/badge/frontend-Twilio-red.svg)
 
 > Ordering Ubers for Unordered groups
+
+Convoy was a hackathon project for **[UBER Hacks 2017](http://careersinfo.uber.com/03-03-17-uberhacks.html)** created over the span of *24 hours* with NodeJS/Express, Twilio, and Uber API.
 
 Try it out at [+1 (504) 2-CONVOY (+1 (504) 266-6869)](tel://5042266869).
 
@@ -25,10 +27,40 @@ At this point, our backend calculates the optimal configuration of Ubers, and pa
 
 ## How We built it
 
+> NEEDS IMPROVEMENT
+
+- Twilio
+- Google Maps Public API
+- Uber API
+    - NodeJS: [shernshiou/node-uber](https://github.com/shernshiou/node-uber)
+    - `/authorize`
+    -  `/requests`
+    - `/me`
+    - `/requests/current` (webhook)
+
 ## Challenges We ran into
+
+> NEEDS IMPROVEMENT
+
+- Uber sandbox
 
 ## Accomplishments that We're proud of
 
+> NEEDS IMPROVEMENT
+
+- Uber sandbox
+
 ## What We learned
 
+> NEEDS IMPROVEMENT
+
+- Twilio API
+- Uber API
+
 ## What's next for Convoy
+
+> NEEDS IMPROVEMENT
+
+- Clean up code and improve UX
+- Get an UBER full-access API key
+- Monetization
